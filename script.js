@@ -21,6 +21,7 @@ function init() {
   initWishlist();
   renderShopping();
   initChecklists();
+  initFirstYear();
   initEconomy();
   setupNav();
 }

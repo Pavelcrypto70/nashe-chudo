@@ -757,6 +757,192 @@ body {
   line-height: 1.5;
 }
 
+/* ─── Первый год ─── */
+.first-year-overall {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gold);
+  margin-top: 12px;
+}
+
+.fy-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.fy-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+  padding: 10px 12px;
+  background: var(--white);
+  border: 1px solid rgba(196, 164, 164, 0.25);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: 0.2s;
+}
+
+.fy-tab:hover { border-color: var(--rose); background: var(--rose-light); }
+
+.fy-tab.active {
+  background: var(--charcoal);
+  border-color: var(--charcoal);
+  color: var(--white);
+}
+
+.fy-tab-num {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.fy-tab-label {
+  font-size: 0.6rem;
+  margin-top: 3px;
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+
+.fy-panel {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  border: 1px solid rgba(196, 164, 164, 0.15);
+  box-shadow: var(--shadow);
+}
+
+.fy-panel-head h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  margin: 0 0 6px;
+}
+
+.fy-age {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--charcoal-soft);
+}
+
+.fy-progress-label {
+  font-size: var(--text-sm);
+  color: var(--gold);
+  font-weight: 600;
+  margin: 0;
+}
+
+.fy-progress-bar {
+  height: 6px;
+  background: var(--cream-dark);
+  border-radius: 999px;
+  margin: 14px 0 24px;
+  overflow: hidden;
+}
+
+.fy-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--rose), var(--gold));
+  transition: width 0.3s;
+}
+
+.fy-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.fy-block {
+  background: var(--cream);
+  border-radius: var(--radius);
+  padding: 18px;
+  border: 1px solid rgba(196, 164, 164, 0.1);
+}
+
+.fy-block h4 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--charcoal);
+}
+
+.fy-block h4 i {
+  color: var(--rose-deep);
+  margin-right: 8px;
+  width: 16px;
+}
+
+.fy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fy-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.fy-list li i {
+  font-size: 0.35rem;
+  color: var(--rose);
+  margin-top: 7px;
+  flex-shrink: 0;
+}
+
+.fy-block-vaccine { background: linear-gradient(135deg, #fff9f0, var(--cream)); }
+.fy-block-vaccine h4 i { color: var(--gold); }
+
+.fy-note {
+  font-size: var(--text-xs);
+  color: var(--charcoal-soft);
+  opacity: 0.8;
+  margin: 10px 0 0;
+  line-height: 1.4;
+}
+
+.fy-block-wide { grid-column: 1 / -1; }
+
+.fy-block-tasks { background: var(--white); border: 1px dashed rgba(196, 164, 164, 0.35); }
+
+.fy-tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fy-tasks .checklist-item label {
+  padding: 8px 0;
+}
+
+.fy-empty {
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  margin: 0;
+}
+
+.fy-disclaimer {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--charcoal-soft);
+  opacity: 0.75;
+  margin-top: 20px;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.45;
+}
+
 /* ─── Story ─── */
 .story-card {
   position: relative;
@@ -1789,16 +1975,19 @@ body {
   .economy-grid { grid-template-columns: 1fr; }
   .economy-advice { grid-template-columns: 1fr; }
   .savings-results { grid-template-columns: 1fr; }
+  .fy-panel-grid { grid-template-columns: 1fr; }
+  .fy-tabs { gap: 4px; }
+  .fy-tab { min-width: 44px; padding: 8px 10px; }
 
   .nav {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 4px;
   }
 
   .nav-link {
-    font-size: 0.7rem;
-    padding: 8px 4px;
+    font-size: 0.65rem;
+    padding: 8px 3px;
     text-align: center;
   }
 
@@ -1963,6 +2152,10 @@ body {
   .benefit-body h3 { font-size: var(--text-xl); }
   .benefit-amount { font-size: var(--text-lg); }
   .benefit-details p { font-size: var(--text-base); }
+
+  .fy-panel { padding: 36px; }
+  .fy-tab { min-width: 56px; padding: 12px 14px; }
+  .fy-tab-num { font-size: 1.4rem; }
 
   .footer-message { padding: 100px 0; }
   .footer-quote { font-size: clamp(1.8rem, 2.2vw, 2.8rem); max-width: 800px; }
