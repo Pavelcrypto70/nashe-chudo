@@ -2,7 +2,9 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#FAF7F2" />
   <title>Наше чудо — для Иры с любовью</title>
   <meta name="description" content="Персональный путеводитель по беременности, подготовке к родам и выплатам — подарок от Павла для Иры." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,6 +26,7 @@
       <a href="#shopping" class="nav-link">К родам</a>
       <a href="#checklists" class="nav-link">Чек-листы</a>
       <a href="#first-year" class="nav-link">1-й год</a>
+      <a href="#growth" class="nav-link">Рост</a>
       <a href="#economy" class="nav-link">Фонд</a>
       <a href="#benefits" class="nav-link">Выплаты</a>
     </nav>
@@ -207,6 +210,49 @@
     </div>
   </section>
 
+  <!-- Growth chart -->
+  <section class="section section-alt" id="growth">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Здоровье</span>
+        <h2 class="section-title">Рост и вес</h2>
+        <p class="section-desc">Вносите измерения с приёмов у педиатра — график покажет динамику. Пунктир — ориентир по норме.</p>
+      </div>
+      <div class="growth-card">
+        <div class="growth-chart-wrap">
+          <canvas id="growthChart" class="growth-chart" height="280"></canvas>
+        </div>
+        <form class="growth-form" id="growthForm">
+          <label class="growth-field">
+            <span>Дата</span>
+            <input type="date" id="growthDate" required>
+          </label>
+          <label class="growth-field">
+            <span>Вес, кг</span>
+            <input type="number" id="growthWeight" step="0.01" min="0" max="30" placeholder="5.2">
+          </label>
+          <label class="growth-field">
+            <span>Рост, см</span>
+            <input type="number" id="growthHeight" step="0.1" min="0" max="120" placeholder="58">
+          </label>
+          <label class="growth-field">
+            <span>Возраст, мес (если нужно)</span>
+            <input type="number" id="growthMonth" step="0.1" min="0" max="24" placeholder="авто">
+          </label>
+          <button type="submit" class="btn-wish btn-wish-primary growth-submit"><i class="fas fa-plus"></i> Добавить</button>
+        </form>
+        <div class="growth-table-wrap">
+          <table class="growth-table">
+            <thead>
+              <tr><th>Дата</th><th>Возраст</th><th>Вес</th><th>Рост</th><th></th></tr>
+            </thead>
+            <tbody id="growthTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Economy -->
   <section class="section" id="economy">
     <div class="container">
@@ -268,8 +314,10 @@
       <div class="section-head">
         <span class="section-tag">Финансы</span>
         <h2 class="section-title">Выплаты в России</h2>
-        <p class="section-desc">Когда, сколько и куда подавать. Отметьте галочкой, когда оформили.</p>
+        <p class="section-desc">Федеральные и региональные выплаты для Томска. Отметьте галочкой, когда оформили.</p>
       </div>
+      <div id="regionTomsk" class="region-section"></div>
+      <h3 class="benefits-subtitle">Федеральные выплаты</h3>
       <div class="benefits-timeline" id="benefitsTimeline"></div>
     </div>
   </section>
@@ -296,6 +344,8 @@
 <script src="economy.js"></script>
 <script src="wishlist.js"></script>
 <script src="first-year.js"></script>
+<script src="region.js"></script>
+<script src="growth.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

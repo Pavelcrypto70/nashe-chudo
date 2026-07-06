@@ -22,6 +22,8 @@ function init() {
   renderShopping();
   initChecklists();
   initFirstYear();
+  initRegion();
+  initGrowth();
   initEconomy();
   setupNav();
 }
@@ -147,6 +149,7 @@ function renderMonthTabs(state) {
   const container = document.getElementById('monthTabs');
   if (!container) return;
   const currentMonth = state?.month || getPregnancyState().month;
+  container.classList.add('month-tabs-scroll');
 
   container.innerHTML = PREGNANCY_MONTHS.map(m => {
     const isActive = m.month === activeMonth;
@@ -295,13 +298,15 @@ function setupNav() {
 
   if (toggle && nav) {
     toggle.addEventListener('click', () => {
-      nav.classList.toggle('open');
+      const isOpen = nav.classList.toggle('open');
       toggle.classList.toggle('open');
+      document.body.classList.toggle('nav-open', isOpen);
     });
     nav.querySelectorAll('.nav-link').forEach(link => {
       link.addEventListener('click', () => {
         nav.classList.remove('open');
         toggle.classList.remove('open');
+        document.body.classList.remove('nav-open');
       });
     });
   }

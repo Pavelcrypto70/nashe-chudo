@@ -9,6 +9,7 @@ function getFirstYearListId(month) {
 function renderFirstYearTabs() {
   const container = document.getElementById('firstYearTabs');
   if (!container) return;
+  container.classList.add('fy-tabs-scroll');
 
   container.innerHTML = FIRST_YEAR.map(m => {
     const isActive = m.month === activeBabyMonth;
