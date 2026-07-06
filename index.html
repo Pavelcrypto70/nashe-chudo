@@ -29,6 +29,7 @@
     <a href="#" class="logo">Наше<span>чудо</span></a>
     <nav class="nav" id="mainNav">
       <a href="#this-week" class="nav-link">Неделя</a>
+      <a href="#calendar" class="nav-link">Календарь</a>
       <a href="#story" class="nav-link">История</a>
       <a href="#memories" class="nav-link">Альбом</a>
       <a href="#journey" class="nav-link">Месяцы</a>
@@ -90,6 +91,25 @@
         <p class="section-desc">Главное прямо сейчас — обновляется автоматически по сроку.</p>
       </div>
       <div class="this-week-panel" id="thisWeekPanel"></div>
+    </div>
+  </section>
+
+  <!-- Calendar -->
+  <section class="section" id="calendar">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Планирование</span>
+        <h2 class="section-title">Календарь важных дат</h2>
+        <p class="section-desc">УЗИ, анализы, декрет и ваши события — рассчитывается по сроку, можно добавить свои.</p>
+        <p class="calendar-summary" id="calendarSummary"></p>
+      </div>
+      <form class="cal-add-form" id="calendarForm">
+        <label class="mem-field"><span>Дата</span><input type="date" name="date" required></label>
+        <label class="mem-field cal-field-grow"><span>Событие</span><input type="text" name="title" placeholder="УЗИ, анализы, визит..." maxlength="80" required></label>
+        <label class="mem-field cal-field-grow"><span>Заметка</span><input type="text" name="note" placeholder="необязательно" maxlength="120"></label>
+        <button type="submit" class="btn-wish btn-wish-primary"><i class="fas fa-plus"></i></button>
+      </form>
+      <div class="calendar-list" id="calendarList"></div>
     </div>
   </section>
 
@@ -198,7 +218,7 @@
       <div class="section-head">
         <span class="section-tag">Подготовка</span>
         <h2 class="section-title">Всё к родам и первым месяцам</h2>
-        <p class="section-desc">Сколько нужно и какой бренд выбрать — можно добавить ссылку с Ozon, Wildberries и др. Выбор сохранится.</p>
+        <p class="section-desc">Сколько нужно и какой бренд выбрать — ссылка с Ozon/WB покажет фото и цену.</p>
       </div>
       <div class="shopping-grid" id="shoppingGrid"></div>
       <div class="shopping-summary" id="shoppingSummary">
@@ -232,7 +252,7 @@
       <div class="section-head">
         <span class="section-tag">На связи</span>
         <h2 class="section-title">Помощники</h2>
-        <p class="section-desc">Счётчик шевелений, таймер схваток и карточка роддома.</p>
+        <p class="section-desc">Счётчик шевелений, таймер схваток, роддом и лог малыша после родов.</p>
       </div>
       <div class="mem-tabs" id="toolsTabs"></div>
       <div class="mem-panel" id="toolsPanel"></div>
@@ -439,6 +459,9 @@
 <script src="first-year.js"></script>
 <script src="region.js"></script>
 <script src="growth.js"></script>
+<script src="product-preview.js"></script>
+<script src="calendar.js"></script>
+<script src="baby-life.js"></script>
 <script src="memories.js"></script>
 <script src="tools.js"></script>
 <script src="names.js"></script>

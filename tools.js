@@ -21,7 +21,8 @@ function renderToolsTabs() {
   const tabs = [
     { id: 'kicks', label: 'Шевеления', icon: 'fa-shoe-prints' },
     { id: 'contractions', label: 'Схватки', icon: 'fa-stopwatch' },
-    { id: 'hospital', label: 'Роддом', icon: 'fa-hospital' }
+    { id: 'hospital', label: 'Роддом', icon: 'fa-hospital' },
+    { id: 'baby', label: 'Малыш', icon: 'fa-baby' }
   ];
   el.innerHTML = tabs.map(t => `
     <button type="button" class="mem-tab${toolsTab === t.id ? ' active' : ''}" data-tab="${t.id}">
@@ -85,6 +86,12 @@ function renderToolsPanel() {
   if (toolsTab === 'hospital') {
     panel.innerHTML = `<div id="hospitalCardWrap"></div>`;
     renderHospitalCard('hospitalCardWrap');
+    return;
+  }
+
+  if (toolsTab === 'baby') {
+    panel.innerHTML = `<div id="babyLifeWrap"></div>`;
+    renderBabyLifePanel(document.getElementById('babyLifeWrap'));
   }
 }
 

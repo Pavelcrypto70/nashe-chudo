@@ -935,3 +935,36 @@ const DEFAULT_BABY_NAMES = [
   'София', 'Анна', 'Мария', 'Алиса', 'Ева',
   'Александр', 'Виктория', 'Милана', 'Дарья', 'Иван'
 ];
+
+const PREGNANCY_CALENDAR = [
+  { week: 6, title: 'Первое УЗИ', note: 'Подтверждение беременности, сердцебиение', icon: 'fa-image', type: 'screening' },
+  { week: 8, title: 'Постановка на учёт', note: 'До 12 недель — право на пособие', icon: 'fa-hospital-user', type: 'important' },
+  { week: 11, title: 'Скрининг 1 триместра', note: '11–14 недель — ВСС, УЗИ', icon: 'fa-vial', type: 'screening' },
+  { week: 16, title: 'Второй триместр', note: 'Можно узнать пол на УЗИ', icon: 'fa-venus-mars', type: 'default' },
+  { week: 18, title: 'Анализы второго триместра', note: 'Биохимия, при необходимости глюкоза', icon: 'fa-vial', type: 'screening' },
+  { week: 20, title: 'УЗИ аномалий', note: 'Детальный осмотр органов малыша', icon: 'fa-image', type: 'screening' },
+  { week: 24, title: 'Список покупок', note: 'Коляска, кроватка, автокресло', icon: 'fa-cart-shopping', type: 'default' },
+  { week: 28, title: 'Третий триместр', note: 'Счётчик шевелений, оформление декрета', icon: 'fa-calendar-check', type: 'important' },
+  { week: 30, title: 'Глюкозотолерантный тест', note: 'По назначению врача', icon: 'fa-vial', type: 'screening' },
+  { week: 32, title: 'Сумка в роддом', note: 'Собрать и проверить чек-лист', icon: 'fa-suitcase-medical', type: 'important' },
+  { week: 36, title: 'Еженедельные визиты', note: 'КТГ, осмотр — по графику врача', icon: 'fa-stethoscope', type: 'screening' },
+  { week: 38, title: 'Финишная прямая', note: 'Телефоны роддома, маршрут', icon: 'fa-hospital', type: 'important' }
+];
+
+const VACCINATION_SCHEDULE = [
+  { id: 'hep_b_1', ageDays: 0, ageLabel: 'Роды', title: 'Гепатит B (1-я доза)', note: 'В роддоме, в первые 24 часа' },
+  { id: 'bcg', ageDays: 3, ageLabel: '3–7 дней', title: 'БЦЖ', note: 'В роддоме или поликлиника' },
+  { id: 'hep_b_2', ageDays: 30, ageLabel: '1 месяц', title: 'Гепатит B (2-я доза)', note: 'По календарю прививок' },
+  { id: 'dtp_1', ageDays: 90, ageLabel: '3 месяца', title: 'АКДС, полиомиелит, Hib', note: '1-я доза комплексной прививки' },
+  { id: 'hep_b_3', ageDays: 90, ageLabel: '3 месяца', title: 'Гепатит B (3-я доза)', note: 'Может совпадать с визитом в 3 мес' },
+  { id: 'pneumo_1', ageDays: 90, ageLabel: '3 месяца', title: 'Пневмококк (1-я)', note: 'ПКВ-13 или аналог по календарю' },
+  { id: 'dtp_2', ageDays: 135, ageLabel: '4,5 месяца', title: 'АКДС, полио, Hib (2-я)', note: 'Вторая доза' },
+  { id: 'pneumo_2', ageDays: 135, ageLabel: '4,5 месяца', title: 'Пневмококк (2-я)', note: 'Вторая доза' },
+  { id: 'dtp_3', ageDays: 180, ageLabel: '6 месяцев', title: 'АКДС, полио, Hib (3-я)', note: 'Третья доза' },
+  { id: 'pneumo_3', ageDays: 180, ageLabel: '6 месяцев', title: 'Пневмококк (3-я)', note: 'Третья доза' },
+  { id: 'kpk_1', ageDays: 365, ageLabel: '12 месяцев', title: 'КПК — корь, краснуха, паротит', note: '1-я доза' },
+  { id: 'hepa_1', ageDays: 365, ageLabel: '12 месяцев', title: 'Гепатит A (1-я)', note: 'По календарю региона' },
+  { id: 'dtp_rev', ageDays: 540, ageLabel: '18 месяцев', title: 'АКДС — ревакцинация', note: 'Первая ревакцинация' },
+  { id: 'polio_rev', ageDays: 540, ageLabel: '18 месяцев', title: 'Полиомиелит — ревакцинация', note: 'По схеме педиатра' },
+  { id: 'kpk_2', ageDays: 1825, ageLabel: '6 лет', title: 'КПК — 2-я доза', note: 'Перед школой' }
+];

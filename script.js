@@ -17,11 +17,13 @@ function init() {
   initSettings();
   updateCountdown(state);
   renderThisWeek(state);
+  initCalendar();
   renderMonthTabs(state);
   renderMonthPanel(activeMonth);
   initMemories();
   initWishlist();
   renderShopping();
+  if (typeof loadAllShopPreviews === 'function') loadAllShopPreviews();
   initChecklists();
   initFirstYear();
   initRegion();
@@ -288,9 +290,18 @@ function setSavedLink(categoryId, optionId, rawUrl) {
   if (!url) {
     if (map[categoryId]?.optionId === optionId) delete map[categoryId];
   } else {
-    map[categoryId] = { optionId, url };
+    const prev = map[categoryId]?.preview;
+    map[categoryId] = { optionId, url, preview: prev?.url === url ? prev : undefined };
   }
   saveShopLinksMap(map);
+  return url;
+}
+
+async function setSavedLinkWithPreview(categoryId, optionId, rawUrl) {
+  const url = setSavedLink(categoryId, optionId, rawUrl);
+  if (url && typeof refreshShopLinkPreview === 'function') {
+    await refreshShopLinkPreview(categoryId, optionId, url);
+  }
 }
 
 function resolveOptionUrl(cat, opt) {
@@ -375,11 +386,16 @@ function renderShopOption(cat, opt, selected) {
     : '';
   const productUrl = resolveOptionUrl(cat, opt);
   const mp = productUrl ? detectMarketplace(productUrl) : null;
+  const preview = productUrl && typeof getCachedPreview === 'function' ? getCachedPreview(productUrl) : null;
   const linkHtml = productUrl
     ? `<a class="shop-opt-link" href="${productUrl}" target="_blank" rel="noopener noreferrer" title="Открыть на ${mp.name}"><i class="fas ${mp.icon}"></i> ${mp.name}</a>`
     : '';
+  const thumbHtml = preview?.image
+    ? `<span class="shop-opt-thumb"><img src="${escapeHtml(preview.image)}" alt="" loading="lazy"></span>`
+    : '';
   return `<button type="button" class="shop-option${selected ? ' selected' : ''}${customClass}" data-category="${cat.id}" data-option="${opt.id}">
     ${opt.custom ? '<span class="shop-opt-badge">свой</span>' : ''}
+    ${thumbHtml}
     <span class="shop-opt-name">${opt.name}</span>
     ${priceHtml}
     <span class="shop-opt-note">${opt.note}</span>
@@ -401,6 +417,14 @@ function renderShopLinkBlock(cat, choices) {
   const displayUrl = resolveOptionUrl(cat, opt);
   const mp = displayUrl ? detectMarketplace(displayUrl) : null;
   const inputValue = (getSavedLinkForOption(cat.id, selectedId) || opt?.url || '').replace(/"/g, '&quot;');
+  const entry = getShopLinksMap()[cat.id];
+  const preview = entry?.preview || (displayUrl && typeof getCachedPreview === 'function' ? getCachedPreview(displayUrl) : null);
+  const previewHtml = displayUrl && typeof renderProductPreviewCard === 'function'
+    ? renderProductPreviewCard(preview, displayUrl, false)
+    : '';
+  const loadingHtml = displayUrl && !preview?.image
+    ? `<p class="shop-preview-loading"><i class="fas fa-spinner fa-spin"></i> Загружаем превью с ${mp?.name || 'магазина'}…</p>`
+    : '';
 
   return `<div class="shop-link-block" data-link-cat="${cat.id}">
     <div class="shop-link-head">
@@ -418,7 +442,10 @@ function renderShopLinkBlock(cat, choices) {
         <i class="fas fa-check"></i><span class="shop-link-save-text">Сохранить</span>
       </button>
     </div>
-    ${displayUrl ? `<a class="shop-link-open" href="${displayUrl}" target="_blank" rel="noopener noreferrer"><i class="fas ${mp.icon}"></i> Открыть на ${mp.name}</a>` : ''}
+    ${loadingHtml}
+    ${previewHtml}
+    ${displayUrl && !previewHtml ? `<a class="shop-link-open" href="${displayUrl}" target="_blank" rel="noopener noreferrer"><i class="fas ${mp.icon}"></i> Открыть на ${mp.name}</a>` : ''}
+    ${previewHtml ? `<a class="shop-link-open shop-link-open--sub" href="${displayUrl}" target="_blank" rel="noopener noreferrer"><i class="fas fa-external-link-alt"></i> Открыть в магазине</a>` : ''}
   </div>`;
 }
 
@@ -481,23 +508,46 @@ function renderShopping() {
   });
 
   grid.querySelectorAll('.shop-link-save').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const catId = btn.dataset.cat;
       const optionId = btn.dataset.option;
       const block = btn.closest('.shop-link-block');
       const input = block?.querySelector('.shop-link-input');
       if (!input) return;
-      setSavedLink(catId, optionId, input.value);
+      btn.disabled = true;
+      await setSavedLinkWithPreview(catId, optionId, input.value);
+      btn.disabled = false;
       renderShopping();
+      showToast('Ссылка сохранена');
     });
   });
 
   grid.querySelectorAll('.shop-link-input').forEach(input => {
-    input.addEventListener('keydown', e => {
+    input.addEventListener('keydown', async e => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
       const btn = input.closest('.shop-link-block')?.querySelector('.shop-link-save');
       if (btn) btn.click();
+    });
+    let debounce;
+    input.addEventListener('input', () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(async () => {
+        const url = normalizeShopUrl(input.value);
+        if (!url || !url.match(/wildberries|ozon|wb\.ru/i)) return;
+        const block = input.closest('.shop-link-block');
+        if (block?.querySelector('.product-preview')) return;
+        const preview = await fetchProductPreview(url);
+        if (preview && block) {
+          const wrap = document.createElement('div');
+          wrap.innerHTML = renderProductPreviewCard(preview, url, false);
+          const card = wrap.firstElementChild;
+          if (card) {
+            block.querySelector('.shop-preview-loading')?.remove();
+            block.insertBefore(card, block.querySelector('.shop-link-open'));
+          }
+        }
+      }, 800);
     });
   });
 

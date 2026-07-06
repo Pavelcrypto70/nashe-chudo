@@ -14,7 +14,11 @@ const BACKUP_KEYS = [
   'nashe_chudo_diary',
   'nashe_chudo_milestones',
   'nashe_chudo_story_photos',
-  'nashe_chudo_names'
+  'nashe_chudo_names',
+  'nashe_chudo_calendar_custom',
+  'nashe_chudo_baby_log',
+  'nashe_chudo_vaccines_done',
+  'nashe_chudo_product_previews'
 ];
 
 function exportBackup() {
@@ -82,6 +86,7 @@ function buildSearchIndex() {
   const add = (title, text, href) => SEARCH_INDEX.push({ title, text: (text || '').toLowerCase(), href });
 
   add('На этой неделе', 'актуально неделя', '#this-week');
+  add('Календарь', 'узи анализы декрет пдр', '#calendar');
   add('История', 'любовь история', '#story');
   add('Месяцы беременности', 'путеводитель анализы', '#journey');
   add('Хотелки', 'рилс instagram', '#wishlist');
@@ -92,7 +97,7 @@ function buildSearchIndex() {
   add('Экономика', 'накопления фонд', '#economy');
   add('Выплаты', 'пособие декрет томск', '#benefits');
   add('Альбом', 'узи дневник фото', '#memories');
-  add('Помощники', 'шевеления схватки роддом', '#tools');
+  add('Помощники', 'шевеления схватки роддом малыш прививки кормление', '#tools');
   add('Имена', 'имя малыша', '#names');
   add('Настройки', 'пдр реквизиты backup', '#settings');
 

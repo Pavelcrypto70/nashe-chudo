@@ -141,6 +141,7 @@ function renderSettingsPanel() {
     });
     applyPersonalization();
     updateCountdown(getPregnancyState());
+    if (typeof renderCalendar === 'function') renderCalendar();
     if (typeof renderHospitalCard === 'function') renderHospitalCard();
     renderSettingsPanel();
     showToast('Даты сохранены');
