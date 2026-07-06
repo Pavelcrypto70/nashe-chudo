@@ -14,10 +14,12 @@ function init() {
   const state = getPregnancyState();
   activeMonth = state.month;
 
+  initSettings();
   updateCountdown(state);
   renderThisWeek(state);
   renderMonthTabs(state);
   renderMonthPanel(activeMonth);
+  initMemories();
   initWishlist();
   renderShopping();
   initChecklists();
@@ -25,7 +27,13 @@ function init() {
   initRegion();
   initGrowth();
   initEconomy();
+  initTools();
+  initNames();
+  renderGiftCard();
+  initBackup();
+  initSearch();
   setupNav();
+  setupNavScrollSpy();
 }
 
 /* ─── Расчёт срока (акушерские недели) ─── */
@@ -53,6 +61,7 @@ function parseDate(str) {
 }
 
 function getDueDate() {
+  if (typeof getEffectiveDueDate === 'function') return getEffectiveDueDate();
   if (CONFIG.dueDate) return parseDate(CONFIG.dueDate);
   const lmp = getLMP();
   const due = new Date(lmp);
@@ -69,14 +78,8 @@ function updateCountdown(state) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const conception = parseDate(CONFIG.conceptionDate);
   const due = getDueDate();
   const pregnancy = state || getPregnancyState();
-
-  const daysLeft = Math.max(0, daysBetween(today, due));
-  const totalDays = daysBetween(getLMP(), due);
-  const daysElapsed = daysBetween(getLMP(), today);
-  const progress = Math.min(100, Math.round((daysElapsed / totalDays) * 100));
 
   const weeksEl = document.getElementById('weeksCount');
   const daysEl = document.getElementById('daysLeft');
@@ -84,13 +87,35 @@ function updateCountdown(state) {
   const fill = document.getElementById('progressFill');
   const progText = document.getElementById('progressText');
   const weekSub = document.getElementById('weekSub');
+  const daysLabel = document.querySelector('.countdown-item:last-child .countdown-label');
+
+  if (typeof isBabyBorn === 'function' && isBabyBorn()) {
+    const ageDays = getBabyAgeDays();
+    const s = getSettings();
+    if (weeksEl) weeksEl.textContent = s.babyName || '👶';
+    if (weekSub) weekSub.textContent = s.babyName ? 'наш малыш' : 'малыш с нами';
+    if (daysEl) daysEl.textContent = ageDays;
+    if (daysLabel) daysLabel.textContent = 'дней с рождения';
+    if (dueText) dueText.textContent = 'Родился: ' + formatDateRu(getBirthDateStr());
+    if (fill) fill.style.width = '100%';
+    if (progText) progText.textContent = 'Мы родители!';
+    return;
+  }
+
+  const daysLeft = Math.max(0, daysBetween(today, due));
+  const totalDays = daysBetween(getLMP(), due);
+  const daysElapsed = daysBetween(getLMP(), today);
+  const progress = Math.min(100, Math.round((daysElapsed / totalDays) * 100));
 
   if (weeksEl) weeksEl.textContent = pregnancy.week;
   if (weekSub) weekSub.textContent = `${pregnancy.month}-й месяц · ${pregnancy.dayInWeek} дн. недели`;
   if (daysEl) daysEl.textContent = daysLeft;
+  if (daysLabel) daysLabel.textContent = 'дней до встречи';
   if (dueText) {
     const opts = { day: 'numeric', month: 'long', year: 'numeric' };
-    dueText.textContent = 'ПДР (ориентир): ' + due.toLocaleDateString('ru-RU', opts);
+    const s = getSettings();
+    const label = s.dueDate ? 'ПДР' : 'ПДР (ориентир)';
+    dueText.textContent = label + ': ' + due.toLocaleDateString('ru-RU', opts);
   }
   if (fill) fill.style.width = progress + '%';
   if (progText) progText.textContent = progress + '% пути пройдено';
@@ -559,6 +584,9 @@ function updateSummary() {
     return `<li><strong>${i.cat}:</strong> ${i.opt.name}${i.opt.custom ? ' <em>(свой)</em>' : ''}${linkHtml}</li>`;
   }).join('');
   if (empty) empty.style.display = items.length ? 'none' : 'block';
+
+  const exportBtn = document.getElementById('exportShoppingBtn');
+  if (exportBtn) exportBtn.style.display = items.length ? 'inline-flex' : 'none';
 }
 
 /* renderBenefits перенесён в checklists.js */

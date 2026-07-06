@@ -27,6 +27,10 @@ function monthsFromBirth(dateStr, birthDateStr) {
 }
 
 function getBirthDate() {
+  if (typeof getBirthDateStr === 'function') {
+    const bd = getBirthDateStr();
+    if (bd) return bd;
+  }
   if (typeof getDueDate === 'function') {
     return getDueDate().toISOString().slice(0, 10);
   }

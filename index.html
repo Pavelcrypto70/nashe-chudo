@@ -2,11 +2,20 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Наше чудо" />
   <meta name="theme-color" content="#FAF7F2" />
   <title>Наше чудо — для Иры с любовью</title>
   <meta name="description" content="Персональный путеводитель по беременности, подготовке к родам и выплатам — подарок от Павла для Иры." />
+  <meta property="og:title" content="Наше чудо — для Иры" />
+  <meta property="og:description" content="Семейный путеводитель: беременность, роды, первый год, выплаты Томск" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="ru_RU" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -19,17 +28,21 @@
   <div class="container header-inner">
     <a href="#" class="logo">Наше<span>чудо</span></a>
     <nav class="nav" id="mainNav">
-      <a href="#story" class="nav-link">История</a>
       <a href="#this-week" class="nav-link">Неделя</a>
+      <a href="#story" class="nav-link">История</a>
+      <a href="#memories" class="nav-link">Альбом</a>
       <a href="#journey" class="nav-link">Месяцы</a>
       <a href="#wishlist" class="nav-link">Хотелки</a>
       <a href="#shopping" class="nav-link">К родам</a>
+      <a href="#names" class="nav-link">Имена</a>
+      <a href="#tools" class="nav-link">Помощники</a>
       <a href="#checklists" class="nav-link">Чек-листы</a>
       <a href="#first-year" class="nav-link">1-й год</a>
       <a href="#growth" class="nav-link">Рост</a>
       <a href="#economy" class="nav-link">Фонд</a>
       <a href="#benefits" class="nav-link">Выплаты</a>
     </nav>
+    <button class="search-toggle" id="searchToggle" aria-label="Поиск"><i class="fas fa-search"></i></button>
     <button class="nav-toggle" id="navToggle" aria-label="Меню">
       <span></span><span></span><span></span>
     </button>
@@ -95,6 +108,20 @@
         </div>
         <p class="story-sign">— Павел</p>
       </div>
+      <div class="story-gallery" id="storyGallery"></div>
+    </div>
+  </section>
+
+  <!-- Album: ultrasound, diary, milestones -->
+  <section class="section section-alt" id="memories">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Воспоминания</span>
+        <h2 class="section-title">Альбом</h2>
+        <p class="section-desc">УЗИ, дневник беременности, важные даты и ваши фотографии.</p>
+      </div>
+      <div class="mem-tabs" id="memoriesTabs"></div>
+      <div class="mem-panel" id="memoriesPanel"></div>
     </div>
   </section>
 
@@ -178,7 +205,37 @@
         <h3>Ваш выбор</h3>
         <ul id="selectedList"></ul>
         <p class="summary-empty" id="summaryEmpty">Пока ничего не выбрано — нажмите на вариант в любой категории.</p>
+        <button type="button" class="btn-wish btn-wish-outline summary-export" id="exportShoppingBtn" style="display:none"><i class="fas fa-share-nodes"></i> Скопировать список</button>
       </div>
+    </div>
+  </section>
+
+  <!-- Baby names -->
+  <section class="section section-alt" id="names">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Выбор</span>
+        <h2 class="section-title">Имена малыша</h2>
+        <p class="section-desc">Отмечайте, что нравится — можно добавить свои варианты.</p>
+      </div>
+      <form class="name-add-form" id="nameAddForm">
+        <input type="text" id="nameAddInput" placeholder="Добавить имя..." maxlength="40" required>
+        <button type="submit" class="btn-wish btn-wish-primary"><i class="fas fa-plus"></i></button>
+      </form>
+      <div id="namesGrid"></div>
+    </div>
+  </section>
+
+  <!-- Tools: kicks, contractions, hospital -->
+  <section class="section" id="tools">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">На связи</span>
+        <h2 class="section-title">Помощники</h2>
+        <p class="section-desc">Счётчик шевелений, таймер схваток и карточка роддома.</p>
+      </div>
+      <div class="mem-tabs" id="toolsTabs"></div>
+      <div class="mem-panel" id="toolsPanel"></div>
     </div>
   </section>
 
@@ -305,6 +362,10 @@
       </div>
 
       <div class="economy-advice" id="economyAdvice"></div>
+      <div class="gift-section" id="giftSection">
+        <h3 class="economy-subtitle"><i class="fas fa-gift"></i> Для родных</h3>
+        <div id="giftCard"></div>
+      </div>
     </div>
   </section>
 
@@ -319,6 +380,25 @@
       <div id="regionTomsk" class="region-section"></div>
       <h3 class="benefits-subtitle">Федеральные выплаты</h3>
       <div class="benefits-timeline" id="benefitsTimeline"></div>
+    </div>
+  </section>
+
+  <!-- Settings & backup -->
+  <section class="section" id="settings">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Данные</span>
+        <h2 class="section-title">Настройки</h2>
+        <p class="section-desc">ПДР, дата рождения, реквизиты, роддом и резервная копия.</p>
+      </div>
+      <div id="settingsPanel"></div>
+      <div class="backup-bar">
+        <button type="button" class="btn-wish btn-wish-outline" id="backupExportBtn"><i class="fas fa-download"></i> Скачать backup</button>
+        <label class="btn-wish btn-wish-ghost backup-import">
+          <i class="fas fa-upload"></i> Восстановить
+          <input type="file" id="backupImportInput" accept="application/json,.json" hidden>
+        </label>
+      </div>
     </div>
   </section>
 
@@ -339,13 +419,30 @@
   </div>
 </footer>
 
+<div class="search-modal" id="searchModal" hidden>
+  <div class="search-backdrop"></div>
+  <div class="search-dialog">
+    <div class="search-header">
+      <i class="fas fa-search"></i>
+      <input type="search" id="searchInput" placeholder="Поиск: коляска, МФЦ, прививка..." autocomplete="off">
+      <button type="button" class="search-close" aria-label="Закрыть"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
 <script src="data.js"></script>
+<script src="settings.js"></script>
 <script src="checklists.js"></script>
 <script src="economy.js"></script>
 <script src="wishlist.js"></script>
 <script src="first-year.js"></script>
 <script src="region.js"></script>
 <script src="growth.js"></script>
+<script src="memories.js"></script>
+<script src="tools.js"></script>
+<script src="names.js"></script>
+<script src="backup.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
