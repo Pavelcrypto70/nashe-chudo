@@ -213,6 +213,7 @@ function renderMonthPanel(month) {
 
 /* ─── Покупки ─── */
 const STORAGE_KEY = 'nashe_chudo_choices';
+const CUSTOM_OPTIONS_KEY = 'nashe_chudo_shop_custom';
 
 function getChoices() {
   try {
@@ -222,12 +223,84 @@ function getChoices() {
   }
 }
 
+function getCustomOptionsMap() {
+  try {
+    return JSON.parse(localStorage.getItem(CUSTOM_OPTIONS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function getCustomOptionsForCategory(categoryId) {
+  return getCustomOptionsMap()[categoryId] || [];
+}
+
+function saveCustomOptionsMap(map) {
+  localStorage.setItem(CUSTOM_OPTIONS_KEY, JSON.stringify(map));
+}
+
+function addCustomOption(categoryId, { name, price, note }) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return null;
+
+  const map = getCustomOptionsMap();
+  const list = map[categoryId] || [];
+  const option = {
+    id: 'custom_' + Date.now(),
+    name: trimmed,
+    price: (price || '').trim() || '—',
+    note: (note || '').trim() || 'Свой вариант',
+    custom: true
+  };
+  list.push(option);
+  map[categoryId] = list;
+  saveCustomOptionsMap(map);
+  return option;
+}
+
+function removeCustomOption(categoryId, optionId) {
+  const map = getCustomOptionsMap();
+  const list = (map[categoryId] || []).filter(o => o.id !== optionId);
+  if (list.length) map[categoryId] = list;
+  else delete map[categoryId];
+  saveCustomOptionsMap(map);
+
+  const choices = getChoices();
+  if (choices[categoryId] === optionId) {
+    delete choices[categoryId];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(choices));
+  }
+}
+
+function getAllOptionsForCategory(cat) {
+  return [...cat.options, ...getCustomOptionsForCategory(cat.id)];
+}
+
+function findOption(cat, optionId) {
+  return getAllOptionsForCategory(cat).find(o => o.id === optionId) || null;
+}
+
+function renderShopOption(cat, opt, selected) {
+  const customClass = opt.custom ? ' shop-option-custom' : '';
+  const priceHtml = opt.price && opt.price !== '—'
+    ? `<span class="shop-opt-price">${opt.price}</span>`
+    : '';
+  return `<button type="button" class="shop-option${selected ? ' selected' : ''}${customClass}" data-category="${cat.id}" data-option="${opt.id}">
+    ${opt.custom ? '<span class="shop-opt-badge">свой</span>' : ''}
+    <span class="shop-opt-name">${opt.name}</span>
+    ${priceHtml}
+    <span class="shop-opt-note">${opt.note}</span>
+    ${opt.custom ? `<span class="shop-opt-remove" data-remove-custom="${cat.id}" data-option="${opt.id}" title="Удалить"><i class="fas fa-times"></i></span>` : ''}
+    ${selected ? '<span class="shop-opt-check"><i class="fas fa-check"></i></span>' : ''}
+  </button>`;
+}
+
 function saveChoice(categoryId, optionId) {
   const choices = getChoices();
   choices[categoryId] = optionId;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(choices));
   updateSummary();
-  document.querySelectorAll(`[data-category="${categoryId}"]`).forEach(card => {
+  document.querySelectorAll(`.shop-option[data-category="${categoryId}"]`).forEach(card => {
     card.classList.toggle('selected', card.dataset.option === optionId);
   });
 }
@@ -237,8 +310,10 @@ function renderShopping() {
   if (!grid) return;
   const choices = getChoices();
 
-  grid.innerHTML = SHOPPING_CATEGORIES.map(cat => `
-    <div class="shop-category">
+  grid.innerHTML = SHOPPING_CATEGORIES.map(cat => {
+    const allOptions = getAllOptionsForCategory(cat);
+    return `
+    <div class="shop-category" data-shop-cat="${cat.id}">
       <div class="shop-cat-head">
         <i class="fas ${cat.icon}"></i>
         <div>
@@ -247,23 +322,86 @@ function renderShopping() {
         </div>
       </div>
       <div class="shop-options">
-        ${cat.options.map(opt => {
-          const sel = choices[cat.id] === opt.id;
-          return `<button class="shop-option${sel ? ' selected' : ''}" data-category="${cat.id}" data-option="${opt.id}">
-            <span class="shop-opt-name">${opt.name}</span>
-            <span class="shop-opt-price">${opt.price}</span>
-            <span class="shop-opt-note">${opt.note}</span>
-            ${sel ? '<span class="shop-opt-check"><i class="fas fa-check"></i></span>' : ''}
-          </button>`;
-        }).join('')}
+        ${allOptions.map(opt => renderShopOption(cat, opt, choices[cat.id] === opt.id)).join('')}
+      </div>
+      <div class="shop-custom">
+        <button type="button" class="btn-wish btn-wish-ghost shop-custom-toggle" data-cat="${cat.id}">
+          <i class="fas fa-plus"></i> Свой бренд / модель
+        </button>
+        <form class="shop-custom-form" data-cat="${cat.id}" hidden>
+          <input type="text" name="name" placeholder="Бренд и модель, напр. Bugaboo Fox 5" required maxlength="80">
+          <input type="text" name="price" placeholder="Цена (необязательно)" maxlength="40">
+          <input type="text" name="note" placeholder="Заметка (необязательно)" maxlength="120">
+          <div class="shop-custom-actions">
+            <button type="submit" class="btn-wish btn-wish-primary btn-sm">Добавить</button>
+            <button type="button" class="btn-wish btn-wish-ghost btn-sm shop-custom-cancel">Отмена</button>
+          </div>
+        </form>
       </div>
       ${typeof renderWishlistInCategory === 'function' ? renderWishlistInCategory(cat.id) : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   grid.querySelectorAll('.shop-option').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', e => {
+      if (e.target.closest('.shop-opt-remove')) return;
       saveChoice(btn.dataset.category, btn.dataset.option);
+    });
+  });
+
+  grid.querySelectorAll('.shop-opt-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      removeCustomOption(btn.dataset.removeCustom, btn.dataset.option);
+      renderShopping();
+    });
+  });
+
+  grid.querySelectorAll('.shop-custom-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const form = btn.parentElement.querySelector('.shop-custom-form');
+      if (!form) return;
+      const open = !form.hidden;
+      grid.querySelectorAll('.shop-custom-form').forEach(f => { f.hidden = true; });
+      grid.querySelectorAll('.shop-custom-toggle').forEach(b => { b.hidden = false; });
+      if (!open) {
+        form.hidden = false;
+        btn.hidden = true;
+        const input = form.querySelector('[name="name"]');
+        if (input) input.focus();
+      }
+    });
+  });
+
+  grid.querySelectorAll('.shop-custom-cancel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wrap = btn.closest('.shop-custom');
+      const form = wrap.querySelector('.shop-custom-form');
+      const toggle = wrap.querySelector('.shop-custom-toggle');
+      form.reset();
+      form.hidden = true;
+      toggle.hidden = false;
+    });
+  });
+
+  grid.querySelectorAll('.shop-custom-form').forEach(form => {
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const catId = form.dataset.cat;
+      const fd = new FormData(form);
+      const option = addCustomOption(catId, {
+        name: fd.get('name'),
+        price: fd.get('price'),
+        note: fd.get('note')
+      });
+      if (!option) return;
+      saveChoice(catId, option.id);
+      form.reset();
+      form.hidden = true;
+      const toggle = form.parentElement.querySelector('.shop-custom-toggle');
+      if (toggle) toggle.hidden = false;
+      renderShopping();
     });
   });
 
@@ -281,11 +419,11 @@ function updateSummary() {
   SHOPPING_CATEGORIES.forEach(cat => {
     const optId = choices[cat.id];
     if (!optId) return;
-    const opt = cat.options.find(o => o.id === optId);
+    const opt = findOption(cat, optId);
     if (opt) items.push({ cat: cat.title, opt });
   });
 
-  list.innerHTML = items.map(i => `<li><strong>${i.cat}:</strong> ${i.opt.name}</li>`).join('');
+  list.innerHTML = items.map(i => `<li><strong>${i.cat}:</strong> ${i.opt.name}${i.opt.custom ? ' <em>(свой)</em>' : ''}</li>`).join('');
   if (empty) empty.style.display = items.length ? 'none' : 'block';
 }
 
