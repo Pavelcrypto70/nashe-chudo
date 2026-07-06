@@ -214,6 +214,67 @@ function renderMonthPanel(month) {
 /* ─── Покупки ─── */
 const STORAGE_KEY = 'nashe_chudo_choices';
 const CUSTOM_OPTIONS_KEY = 'nashe_chudo_shop_custom';
+const SHOP_LINKS_KEY = 'nashe_chudo_shop_links';
+
+function normalizeShopUrl(raw) {
+  let url = (raw || '').trim();
+  if (!url) return '';
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  try {
+    new URL(url);
+    return url;
+  } catch {
+    return '';
+  }
+}
+
+function detectMarketplace(url) {
+  const u = (url || '').toLowerCase();
+  if (u.includes('wildberries') || u.includes('wb.ru')) return { name: 'Wildberries', icon: 'fa-bag-shopping' };
+  if (u.includes('ozon')) return { name: 'Ozon', icon: 'fa-box' };
+  if (u.includes('market.yandex') || u.includes('yandex.ru/market')) return { name: 'Яндекс Маркет', icon: 'fa-store' };
+  if (u.includes('dns-shop') || u.includes('dns.ru')) return { name: 'DNS', icon: 'fa-laptop' };
+  if (u.includes('detmir')) return { name: 'Детский мир', icon: 'fa-child' };
+  if (u.includes('lamoda')) return { name: 'Lamoda', icon: 'fa-shirt' };
+  return { name: 'Магазин', icon: 'fa-external-link-alt' };
+}
+
+function getShopLinksMap() {
+  try {
+    return JSON.parse(localStorage.getItem(SHOP_LINKS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveShopLinksMap(map) {
+  localStorage.setItem(SHOP_LINKS_KEY, JSON.stringify(map));
+}
+
+function getSavedLinkForOption(categoryId, optionId) {
+  const entry = getShopLinksMap()[categoryId];
+  if (entry && entry.optionId === optionId && entry.url) return entry.url;
+  return '';
+}
+
+function setSavedLink(categoryId, optionId, rawUrl) {
+  const map = getShopLinksMap();
+  const url = normalizeShopUrl(rawUrl);
+  if (!url) {
+    if (map[categoryId]?.optionId === optionId) delete map[categoryId];
+  } else {
+    map[categoryId] = { optionId, url };
+  }
+  saveShopLinksMap(map);
+}
+
+function resolveOptionUrl(cat, opt) {
+  if (!cat || !opt) return '';
+  const saved = getSavedLinkForOption(cat.id, opt.id);
+  if (saved) return saved;
+  if (opt.url) return opt.url;
+  return '';
+}
 
 function getChoices() {
   try {
@@ -239,12 +300,13 @@ function saveCustomOptionsMap(map) {
   localStorage.setItem(CUSTOM_OPTIONS_KEY, JSON.stringify(map));
 }
 
-function addCustomOption(categoryId, { name, price, note }) {
+function addCustomOption(categoryId, { name, price, note, url }) {
   const trimmed = (name || '').trim();
   if (!trimmed) return null;
 
   const map = getCustomOptionsMap();
   const list = map[categoryId] || [];
+  const normalizedUrl = normalizeShopUrl(url);
   const option = {
     id: 'custom_' + Date.now(),
     name: trimmed,
@@ -252,6 +314,7 @@ function addCustomOption(categoryId, { name, price, note }) {
     note: (note || '').trim() || 'Свой вариант',
     custom: true
   };
+  if (normalizedUrl) option.url = normalizedUrl;
   list.push(option);
   map[categoryId] = list;
   saveCustomOptionsMap(map);
@@ -285,24 +348,60 @@ function renderShopOption(cat, opt, selected) {
   const priceHtml = opt.price && opt.price !== '—'
     ? `<span class="shop-opt-price">${opt.price}</span>`
     : '';
+  const productUrl = resolveOptionUrl(cat, opt);
+  const mp = productUrl ? detectMarketplace(productUrl) : null;
+  const linkHtml = productUrl
+    ? `<a class="shop-opt-link" href="${productUrl}" target="_blank" rel="noopener noreferrer" title="Открыть на ${mp.name}"><i class="fas ${mp.icon}"></i> ${mp.name}</a>`
+    : '';
   return `<button type="button" class="shop-option${selected ? ' selected' : ''}${customClass}" data-category="${cat.id}" data-option="${opt.id}">
     ${opt.custom ? '<span class="shop-opt-badge">свой</span>' : ''}
     <span class="shop-opt-name">${opt.name}</span>
     ${priceHtml}
     <span class="shop-opt-note">${opt.note}</span>
+    ${linkHtml}
     ${opt.custom ? `<span class="shop-opt-remove" data-remove-custom="${cat.id}" data-option="${opt.id}" title="Удалить"><i class="fas fa-times"></i></span>` : ''}
     ${selected ? '<span class="shop-opt-check"><i class="fas fa-check"></i></span>' : ''}
   </button>`;
+}
+
+function renderShopLinkBlock(cat, choices) {
+  const selectedId = choices[cat.id];
+  if (!selectedId) {
+    return `<div class="shop-link-block shop-link-block--idle">
+      <p class="shop-link-idle"><i class="fas fa-link"></i> Выберите вариант — затем можно вставить ссылку с Ozon, Wildberries и др.</p>
+    </div>`;
+  }
+
+  const opt = findOption(cat, selectedId);
+  const displayUrl = resolveOptionUrl(cat, opt);
+  const mp = displayUrl ? detectMarketplace(displayUrl) : null;
+  const inputValue = (getSavedLinkForOption(cat.id, selectedId) || opt?.url || '').replace(/"/g, '&quot;');
+
+  return `<div class="shop-link-block" data-link-cat="${cat.id}">
+    <div class="shop-link-head">
+      <i class="fas fa-link"></i>
+      <div>
+        <strong>Ссылка на товар</strong>
+        <span class="shop-link-hint">Ozon, Wildberries, Яндекс Маркет, Детский мир…</span>
+      </div>
+    </div>
+    <div class="shop-link-row">
+      <input type="url" class="shop-link-input" data-cat="${cat.id}" data-option="${selectedId}"
+        value="${inputValue}"
+        placeholder="https://www.wildberries.ru/catalog/..." maxlength="500" inputmode="url">
+      <button type="button" class="btn-wish btn-wish-outline btn-sm shop-link-save" data-cat="${cat.id}" data-option="${selectedId}">
+        <i class="fas fa-check"></i><span class="shop-link-save-text">Сохранить</span>
+      </button>
+    </div>
+    ${displayUrl ? `<a class="shop-link-open" href="${displayUrl}" target="_blank" rel="noopener noreferrer"><i class="fas ${mp.icon}"></i> Открыть на ${mp.name}</a>` : ''}
+  </div>`;
 }
 
 function saveChoice(categoryId, optionId) {
   const choices = getChoices();
   choices[categoryId] = optionId;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(choices));
-  updateSummary();
-  document.querySelectorAll(`.shop-option[data-category="${categoryId}"]`).forEach(card => {
-    card.classList.toggle('selected', card.dataset.option === optionId);
-  });
+  renderShopping();
 }
 
 function renderShopping() {
@@ -324,6 +423,7 @@ function renderShopping() {
       <div class="shop-options">
         ${allOptions.map(opt => renderShopOption(cat, opt, choices[cat.id] === opt.id)).join('')}
       </div>
+      ${renderShopLinkBlock(cat, choices)}
       <div class="shop-custom">
         <button type="button" class="btn-wish btn-wish-ghost shop-custom-toggle" data-cat="${cat.id}">
           <i class="fas fa-plus"></i> Свой бренд / модель
@@ -331,6 +431,7 @@ function renderShopping() {
         <form class="shop-custom-form" data-cat="${cat.id}" hidden>
           <input type="text" name="name" placeholder="Бренд и модель, напр. Bugaboo Fox 5" required maxlength="80">
           <input type="text" name="price" placeholder="Цена (необязательно)" maxlength="40">
+          <input type="url" name="url" placeholder="Ссылка Ozon / Wildberries (необязательно)" maxlength="500" inputmode="url">
           <input type="text" name="note" placeholder="Заметка (необязательно)" maxlength="120">
           <div class="shop-custom-actions">
             <button type="submit" class="btn-wish btn-wish-primary btn-sm">Добавить</button>
@@ -345,8 +446,33 @@ function renderShopping() {
 
   grid.querySelectorAll('.shop-option').forEach(btn => {
     btn.addEventListener('click', e => {
-      if (e.target.closest('.shop-opt-remove')) return;
+      if (e.target.closest('.shop-opt-remove') || e.target.closest('.shop-opt-link')) return;
       saveChoice(btn.dataset.category, btn.dataset.option);
+    });
+  });
+
+  grid.querySelectorAll('.shop-opt-link').forEach(link => {
+    link.addEventListener('click', e => e.stopPropagation());
+  });
+
+  grid.querySelectorAll('.shop-link-save').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const catId = btn.dataset.cat;
+      const optionId = btn.dataset.option;
+      const block = btn.closest('.shop-link-block');
+      const input = block?.querySelector('.shop-link-input');
+      if (!input) return;
+      setSavedLink(catId, optionId, input.value);
+      renderShopping();
+    });
+  });
+
+  grid.querySelectorAll('.shop-link-input').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const btn = input.closest('.shop-link-block')?.querySelector('.shop-link-save');
+      if (btn) btn.click();
     });
   });
 
@@ -393,7 +519,8 @@ function renderShopping() {
       const option = addCustomOption(catId, {
         name: fd.get('name'),
         price: fd.get('price'),
-        note: fd.get('note')
+        note: fd.get('note'),
+        url: fd.get('url')
       });
       if (!option) return;
       saveChoice(catId, option.id);
@@ -423,7 +550,14 @@ function updateSummary() {
     if (opt) items.push({ cat: cat.title, opt });
   });
 
-  list.innerHTML = items.map(i => `<li><strong>${i.cat}:</strong> ${i.opt.name}${i.opt.custom ? ' <em>(свой)</em>' : ''}</li>`).join('');
+  list.innerHTML = items.map(i => {
+    const catObj = SHOPPING_CATEGORIES.find(c => c.title === i.cat);
+    const linkUrl = catObj ? resolveOptionUrl(catObj, i.opt) : '';
+    const linkHtml = linkUrl
+      ? ` <a class="summary-link" href="${linkUrl}" target="_blank" rel="noopener noreferrer" title="Открыть товар"><i class="fas fa-external-link-alt"></i></a>`
+      : '';
+    return `<li><strong>${i.cat}:</strong> ${i.opt.name}${i.opt.custom ? ' <em>(свой)</em>' : ''}${linkHtml}</li>`;
+  }).join('');
   if (empty) empty.style.display = items.length ? 'none' : 'block';
 }
 
