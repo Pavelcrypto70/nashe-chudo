@@ -4,24 +4,43 @@
 const CONFIG = {
   husbandName: 'Павел',
   wifeName: 'Ира',
-  // Примерная дата зачатия: 1–5 марта → берём середину
   conceptionDate: '2026-03-03',
-  // Точную ПДР укажете позже — пока считается автоматически (+266 дней)
-  dueDate: null,
-  // Текущий месяц для подсветки (4-й)
-  highlightMonth: 4
+  dueDate: null
 };
 
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
-  updateCountdown();
-  renderMonthTabs();
-  renderMonthPanel(CONFIG.highlightMonth);
+  const state = getPregnancyState();
+  activeMonth = state.month;
+
+  updateCountdown(state);
+  renderThisWeek(state);
+  renderMonthTabs(state);
+  renderMonthPanel(activeMonth);
   initWishlist();
   renderShopping();
-  renderBenefits();
+  initChecklists();
+  initEconomy();
   setupNav();
+}
+
+/* ─── Расчёт срока (акушерские недели) ─── */
+function getLMP() {
+  const c = parseDate(CONFIG.conceptionDate);
+  const lmp = new Date(c);
+  lmp.setDate(lmp.getDate() - 14);
+  return lmp;
+}
+
+function getPregnancyState() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = daysBetween(getLMP(), today);
+  const week = Math.max(1, Math.min(42, Math.floor(days / 7) + 1));
+  const month = Math.min(9, Math.max(1, Math.ceil(week / 4)));
+  const dayInWeek = days % 7 + 1;
+  return { week, month, days, dayInWeek };
 }
 
 /* ─── Даты и счётчик ─── */
@@ -32,9 +51,9 @@ function parseDate(str) {
 
 function getDueDate() {
   if (CONFIG.dueDate) return parseDate(CONFIG.dueDate);
-  const conception = parseDate(CONFIG.conceptionDate);
-  const due = new Date(conception);
-  due.setDate(due.getDate() + 266);
+  const lmp = getLMP();
+  const due = new Date(lmp);
+  due.setDate(due.getDate() + 280);
   return due;
 }
 
@@ -43,26 +62,28 @@ function daysBetween(a, b) {
   return Math.round((b - a) / ms);
 }
 
-function updateCountdown() {
+function updateCountdown(state) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const conception = parseDate(CONFIG.conceptionDate);
   const due = getDueDate();
+  const pregnancy = state || getPregnancyState();
 
-  const daysFromConception = daysBetween(conception, today);
-  const weeks = Math.floor(daysFromConception / 7);
   const daysLeft = Math.max(0, daysBetween(today, due));
-  const totalDays = daysBetween(conception, due);
-  const progress = Math.min(100, Math.round((daysFromConception / totalDays) * 100));
+  const totalDays = daysBetween(getLMP(), due);
+  const daysElapsed = daysBetween(getLMP(), today);
+  const progress = Math.min(100, Math.round((daysElapsed / totalDays) * 100));
 
   const weeksEl = document.getElementById('weeksCount');
   const daysEl = document.getElementById('daysLeft');
   const dueText = document.getElementById('dueDateText');
   const fill = document.getElementById('progressFill');
   const progText = document.getElementById('progressText');
+  const weekSub = document.getElementById('weekSub');
 
-  if (weeksEl) weeksEl.textContent = weeks;
+  if (weeksEl) weeksEl.textContent = pregnancy.week;
+  if (weekSub) weekSub.textContent = `${pregnancy.month}-й месяц · ${pregnancy.dayInWeek} дн. недели`;
   if (daysEl) daysEl.textContent = daysLeft;
   if (dueText) {
     const opts = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -72,16 +93,63 @@ function updateCountdown() {
   if (progText) progText.textContent = progress + '% пути пройдено';
 }
 
-/* ─── Месяцы беременности ─── */
-let activeMonth = CONFIG.highlightMonth;
+/* ─── Блок «На этой неделе» ─── */
+function renderThisWeek(state) {
+  const el = document.getElementById('thisWeekPanel');
+  if (!el) return;
 
-function renderMonthTabs() {
+  const monthData = PREGNANCY_MONTHS.find(m => m.month === state.month);
+  if (!monthData) return;
+
+  const benefitHint = state.week >= 28
+    ? 'Оформить декрет и документы на выплаты'
+    : state.week >= 18
+      ? 'Узнать пол на УЗИ, начать список покупок'
+      : 'Держать ритм витаминов и плановых визитов';
+
+  const buyHint = state.week >= 24
+    ? 'Доукомплектовать сумку в роддом и дом'
+    : state.week >= 16
+      ? 'Выбрать коляску и автокресло'
+      : 'Пока рано к крупным покупкам — наблюдаем и копим силы';
+
+  el.innerHTML = `
+    <div class="this-week-badge">Сейчас · ${state.week} неделя</div>
+    <div class="this-week-grid">
+      <div class="this-week-card">
+        <h4><i class="fas fa-seedling"></i> Малыш</h4>
+        <p><strong>${monthData.size}</strong> — ${monthData.sizeDetail}</p>
+        <p class="this-week-muted">${monthData.baby}</p>
+      </div>
+      <div class="this-week-card">
+        <h4><i class="fas fa-vial"></i> На этой неделе</h4>
+        <ul>${monthData.tests.slice(0, 3).map(t => `<li>${t}</li>`).join('')}</ul>
+      </div>
+      <div class="this-week-card">
+        <h4><i class="fas fa-lightbulb"></i> Совет</h4>
+        <p>${monthData.tips}</p>
+      </div>
+      <div class="this-week-card this-week-action">
+        <h4><i class="fas fa-list-check"></i> Действия</h4>
+        <p><i class="fas fa-wallet"></i> ${benefitHint}</p>
+        <p><i class="fas fa-cart-shopping"></i> ${buyHint}</p>
+        <a href="#checklists" class="this-week-link">Открыть чек-листы →</a>
+      </div>
+    </div>
+  `;
+}
+
+/* ─── Месяцы беременности ─── */
+let activeMonth = 1;
+
+function renderMonthTabs(state) {
   const container = document.getElementById('monthTabs');
   if (!container) return;
+  const currentMonth = state?.month || getPregnancyState().month;
 
   container.innerHTML = PREGNANCY_MONTHS.map(m => {
     const isActive = m.month === activeMonth;
-    const isCurrent = m.month === CONFIG.highlightMonth;
+    const isCurrent = m.month === currentMonth;
     return `<button class="month-tab${isActive ? ' active' : ''}${isCurrent ? ' current' : ''}" data-month="${m.month}">
       <span class="month-num">${m.month}</span>
       <span class="month-label">${m.title.replace(' месяц', '')}</span>
@@ -92,7 +160,7 @@ function renderMonthTabs() {
   container.querySelectorAll('.month-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       activeMonth = Number(btn.dataset.month);
-      renderMonthTabs();
+      renderMonthTabs(getPregnancyState());
       renderMonthPanel(activeMonth);
     });
   });
@@ -217,26 +285,7 @@ function updateSummary() {
   if (empty) empty.style.display = items.length ? 'none' : 'block';
 }
 
-/* ─── Выплаты ─── */
-function renderBenefits() {
-  const container = document.getElementById('benefitsTimeline');
-  if (!container) return;
-
-  container.innerHTML = BENEFITS_RF.map((b, i) => `
-    <div class="benefit-card status-${b.status}">
-      <div class="benefit-num">${i + 1}</div>
-      <div class="benefit-body">
-        <h3>${b.title}</h3>
-        <div class="benefit-amount">${b.amount}</div>
-        <div class="benefit-details">
-          <p><i class="fas fa-calendar"></i> <strong>Когда:</strong> ${b.when}</p>
-          <p><i class="fas fa-building"></i> <strong>Куда:</strong> ${b.where}</p>
-          <p><i class="fas fa-file-alt"></i> <strong>Документы:</strong> ${b.docs}</p>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
+/* renderBenefits перенесён в checklists.js */
 
 /* ─── Навигация ─── */
 function setupNav() {

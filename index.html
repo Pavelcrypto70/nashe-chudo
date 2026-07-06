@@ -18,9 +18,12 @@
     <a href="#" class="logo">Наше<span>чудо</span></a>
     <nav class="nav" id="mainNav">
       <a href="#story" class="nav-link">История</a>
-      <a href="#journey" class="nav-link">Беременность</a>
+      <a href="#this-week" class="nav-link">Неделя</a>
+      <a href="#journey" class="nav-link">Месяцы</a>
       <a href="#wishlist" class="nav-link">Хотелки</a>
       <a href="#shopping" class="nav-link">К родам</a>
+      <a href="#checklists" class="nav-link">Чек-листы</a>
+      <a href="#economy" class="nav-link">Фонд</a>
       <a href="#benefits" class="nav-link">Выплаты</a>
     </nav>
     <button class="nav-toggle" id="navToggle" aria-label="Меню">
@@ -44,6 +47,7 @@
           <div class="countdown-item">
             <span class="countdown-num" id="weeksCount">—</span>
             <span class="countdown-label">неделя</span>
+            <span class="countdown-sub-week" id="weekSub"></span>
           </div>
           <div class="countdown-divider"></div>
           <div class="countdown-item">
@@ -57,6 +61,18 @@
           <span class="progress-text" id="progressText">—</span>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- This week -->
+  <section class="section section-alt" id="this-week">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Актуально</span>
+        <h2 class="section-title">На этой неделе</h2>
+        <p class="section-desc">Главное прямо сейчас — обновляется автоматически по сроку.</p>
+      </div>
+      <div class="this-week-panel" id="thisWeekPanel"></div>
     </div>
   </section>
 
@@ -162,13 +178,81 @@
     </div>
   </section>
 
+  <!-- Checklists -->
+  <section class="section section-alt" id="checklists">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Готовность</span>
+        <h2 class="section-title">Чек-листы</h2>
+        <p class="section-desc">Отмечайте выполненное — прогресс сохранится в браузере.</p>
+        <p class="checklists-overall" id="checklistsOverall"></p>
+      </div>
+      <div class="checklists-container" id="checklistsContainer"></div>
+    </div>
+  </section>
+
+  <!-- Economy -->
+  <section class="section" id="economy">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Будущее</span>
+        <h2 class="section-title">Экономика и пожелания</h2>
+        <p class="section-desc">Как копить к 18 годам, куда переводить подарки и что мы желаем нашему малышу.</p>
+      </div>
+
+      <div class="economy-grid">
+        <div class="economy-calc-card">
+          <h3><i class="fas fa-calculator"></i> Калькулятор накоплений</h3>
+          <p class="economy-calc-lead">Прикиньте, сколько накопится, если откладывать каждый месяц с рождения.</p>
+          <form class="savings-form" id="savingsForm">
+            <label class="savings-field">
+              <span>Ежемесячно откладываем</span>
+              <input type="number" id="savingsMonthly" min="0" step="500" value="5000"> <em>₽</em>
+            </label>
+            <label class="savings-field">
+              <span>Подарки при рождении (разово)</span>
+              <input type="number" id="savingsLump" min="0" step="1000" value="50000"> <em>₽</em>
+            </label>
+            <label class="savings-field">
+              <span>Ставка (ориентир)</span>
+              <input type="number" id="savingsRate" min="0" max="20" step="0.5" value="8"> <em>% годовых</em>
+            </label>
+          </form>
+          <div class="savings-results">
+            <div class="savings-result-item">
+              <span class="savings-result-label">Через 5 лет</span>
+              <span class="savings-result-num" id="savingsResult5">—</span>
+            </div>
+            <div class="savings-result-item savings-result-main">
+              <span class="savings-result-label">К 18 годам</span>
+              <span class="savings-result-num" id="savingsResult18">—</span>
+            </div>
+          </div>
+          <p class="savings-detail" id="savingsDetail"></p>
+          <p class="savings-disclaimer">Расчёт ориентировочный, не финансовая рекомендация. Реальная доходность зависит от банка и инструмента.</p>
+        </div>
+
+        <div class="economy-wishes-card">
+          <h3><i class="fas fa-heart"></i> Пожелания малышу</h3>
+          <ul class="child-wishes-list" id="childWishesList"></ul>
+          <form class="wishes-form" id="wishesForm">
+            <input type="text" id="newWishText" placeholder="Добавить своё пожелание...">
+            <button type="submit" class="btn-wish btn-wish-primary"><i class="fas fa-plus"></i></button>
+          </form>
+        </div>
+      </div>
+
+      <div class="economy-advice" id="economyAdvice"></div>
+    </div>
+  </section>
+
   <!-- Benefits -->
   <section class="section section-alt" id="benefits">
     <div class="container">
       <div class="section-head">
         <span class="section-tag">Финансы</span>
         <h2 class="section-title">Выплаты в России</h2>
-        <p class="section-desc">Когда, сколько и куда подавать документы. Суммы ориентировочные — уточняйте на год получения.</p>
+        <p class="section-desc">Когда, сколько и куда подавать. Отметьте галочкой, когда оформили.</p>
       </div>
       <div class="benefits-timeline" id="benefitsTimeline"></div>
     </div>
@@ -192,6 +276,8 @@
 </footer>
 
 <script src="data.js"></script>
+<script src="checklists.js"></script>
+<script src="economy.js"></script>
 <script src="wishlist.js"></script>
 <script src="script.js"></script>
 </body>

@@ -226,6 +226,15 @@ body {
   text-transform: lowercase;
 }
 
+.countdown-sub-week {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--gold);
+  margin-top: 6px;
+  text-transform: none;
+  font-weight: 500;
+}
+
 .countdown-divider {
   width: 1px;
   height: 48px;
@@ -304,6 +313,448 @@ body {
   max-width: 640px;
   margin: 0 auto;
   font-weight: 300;
+}
+
+/* ─── На этой неделе ─── */
+.this-week-panel {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  border: 1px solid rgba(196, 164, 164, 0.15);
+  box-shadow: var(--shadow);
+}
+
+.this-week-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: var(--cream);
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 20px;
+}
+
+.this-week-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.this-week-card {
+  background: var(--cream);
+  border-radius: var(--radius);
+  padding: 20px;
+  border: 1px solid rgba(196, 164, 164, 0.12);
+}
+
+.this-week-card h4 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--charcoal);
+}
+
+.this-week-card h4 i { color: var(--rose-deep); margin-right: 8px; }
+
+.this-week-card p,
+.this-week-card li {
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.this-week-muted { font-size: var(--text-xs) !important; opacity: 0.85; }
+
+.this-week-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.this-week-action p i {
+  width: 18px;
+  color: var(--gold);
+  margin-right: 6px;
+}
+
+.this-week-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--rose-deep);
+  text-decoration: none;
+}
+
+.this-week-link:hover { text-decoration: underline; }
+
+/* ─── Чек-листы ─── */
+.checklists-overall {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gold);
+  margin-top: 12px;
+}
+
+.checklists-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.checklist-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid rgba(196, 164, 164, 0.15);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.checklist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checklist-head-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.checklist-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--rose-light);
+  color: var(--rose-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checklist-head h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 500;
+  margin: 0 0 4px;
+}
+
+.checklist-desc {
+  font-size: var(--text-xs);
+  color: var(--charcoal-soft);
+  margin: 0;
+}
+
+.checklist-head-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.checklist-progress-text {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gold);
+}
+
+.checklist-chevron {
+  color: var(--charcoal-soft);
+  transition: transform 0.2s;
+}
+
+.checklist-card.open .checklist-chevron { transform: rotate(180deg); }
+
+.checklist-progress-bar {
+  height: 4px;
+  background: var(--cream-dark);
+}
+
+.checklist-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--rose), var(--gold));
+  transition: width 0.3s;
+}
+
+.checklist-body {
+  display: none;
+  padding: 0 20px 16px;
+}
+
+.checklist-card.open .checklist-body { display: block; }
+
+.checklist-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checklist-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(196, 164, 164, 0.12);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--charcoal-soft);
+}
+
+.checklist-item:last-child label { border-bottom: none; }
+
+.checklist-item input { position: absolute; opacity: 0; pointer-events: none; }
+
+.check-box {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(196, 164, 164, 0.5);
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  transition: 0.2s;
+}
+
+.check-box i {
+  font-size: 0.65rem;
+  color: var(--white);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: 0.15s;
+}
+
+.checklist-item.checked .check-box,
+.benefit-check input:checked + .check-box {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.checklist-item.checked .check-box i,
+.benefit-check input:checked + .check-box i {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checklist-item.checked .check-label {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+/* ─── Экономика ─── */
+.economy-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.economy-calc-card,
+.economy-wishes-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  border: 1px solid rgba(196, 164, 164, 0.12);
+  box-shadow: var(--shadow);
+}
+
+.economy-calc-card h3,
+.economy-wishes-card h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+
+.economy-calc-card h3 i,
+.economy-wishes-card h3 i {
+  color: var(--gold);
+  margin-right: 8px;
+}
+
+.economy-calc-lead {
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  margin: 0 0 20px;
+}
+
+.savings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.savings-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.savings-field span {
+  flex: 1;
+  min-width: 180px;
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+}
+
+.savings-field input {
+  width: 120px;
+  padding: 10px 12px;
+  border: 1px solid rgba(196, 164, 164, 0.35);
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+}
+
+.savings-field em {
+  font-style: normal;
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+}
+
+.savings-results {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.savings-result-item {
+  background: var(--cream);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+
+.savings-result-main {
+  background: linear-gradient(135deg, var(--charcoal), #3d3834);
+  color: var(--white);
+}
+
+.savings-result-main .savings-result-label { color: rgba(255,255,255,0.7); }
+.savings-result-main .savings-result-num { color: var(--gold-light); }
+
+.savings-result-label {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--charcoal-soft);
+  margin-bottom: 4px;
+}
+
+.savings-result-num {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.savings-detail {
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  margin: 0 0 8px;
+}
+
+.savings-disclaimer {
+  font-size: var(--text-xs);
+  color: var(--charcoal-soft);
+  opacity: 0.7;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.child-wishes-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.wish-item-text {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(196, 164, 164, 0.12);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--charcoal-soft);
+}
+
+.wish-item-text i {
+  color: var(--rose);
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.wishes-form {
+  display: flex;
+  gap: 8px;
+}
+
+.wishes-form input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid rgba(196, 164, 164, 0.35);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+}
+
+.wishes-form .btn-wish { padding: 12px 16px; }
+
+.economy-advice {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.economy-tip {
+  display: flex;
+  gap: 14px;
+  background: var(--cream);
+  border-radius: var(--radius);
+  padding: 20px;
+  border: 1px solid rgba(196, 164, 164, 0.12);
+}
+
+.economy-tip-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.economy-tip h4 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.economy-tip p {
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* ─── Story ─── */
@@ -650,13 +1101,31 @@ body {
 
 .benefit-card {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   background: var(--cream);
   border-radius: var(--radius);
   padding: 24px;
   border: 1px solid rgba(196, 164, 164, 0.15);
   transition: 0.2s;
+  align-items: flex-start;
 }
+
+.benefit-card.benefit-done {
+  opacity: 0.65;
+  background: var(--white);
+}
+
+.benefit-card.benefit-done .benefit-body h3 {
+  text-decoration: line-through;
+}
+
+.benefit-check {
+  flex-shrink: 0;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.benefit-check input { position: absolute; opacity: 0; }
 
 .benefit-card:hover {
   box-shadow: var(--shadow);
@@ -1314,8 +1783,24 @@ body {
   .wish-form-row-main { flex-direction: column; align-items: stretch; }
   .wish-form-row-main .btn-wish-primary { width: 100%; }
   .wishlist-grid { grid-template-columns: 1fr; }
-  .wish-embed-ig iframe { min-height: 400px; }
   .wish-thumb, .wish-thumb-overlay { min-height: 240px; }
+
+  .this-week-grid { grid-template-columns: 1fr; }
+  .economy-grid { grid-template-columns: 1fr; }
+  .economy-advice { grid-template-columns: 1fr; }
+  .savings-results { grid-template-columns: 1fr; }
+
+  .nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .nav-link {
+    font-size: 0.7rem;
+    padding: 8px 4px;
+    text-align: center;
+  }
 
   .footer-inner { justify-content: center; text-align: center; }
 }
