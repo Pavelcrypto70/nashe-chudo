@@ -206,7 +206,7 @@ function migrateLegacyShopData() {
 function renderShopItemCard(item) {
   const mp = item.url ? detectMarketplace(item.url) : { name: 'Сайт', icon: 'fa-link' };
   const imgHtml = item.image
-    ? `<img src="${escapeHtml(item.image)}" alt="" class="shop-item-img" loading="lazy">`
+    ? `<img src="${escapeHtml(item.image)}" alt="" class="shop-item-img" loading="lazy"${item.article ? ` data-nm="${escapeHtml(item.article)}" onerror="wbImgFallback(this)"` : ''}>`
     : `<div class="shop-item-img shop-item-img--placeholder"><i class="fas ${item.source === 'video' ? 'fa-play' : mp.icon}"></i></div>`;
 
   const articleHtml = item.article ? `<span class="shop-item-article">Арт. ${escapeHtml(item.article)}</span>` : '';

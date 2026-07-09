@@ -26,16 +26,86 @@ function isValidProductTitle(title) {
   return true;
 }
 
+function isValidProductImage(url) {
+  if (!url) return false;
+  const u = url.toLowerCase();
+  if (u.includes('logo') || u.includes('favicon') || u.includes('microlink')) return false;
+  if (u.includes('wildberries') && (u.includes('/icon') || u.endsWith('.svg'))) return false;
+  if (/^арт\.?\s*\d+$/i.test(u)) return false;
+  return true;
+}
+
+function isArticleOnlyTitle(title) {
+  return /^арт\.?\s*\d+$/i.test((title || '').trim());
+}
+
+function cleanBadPreviewCache() {
+  const cache = getPreviewCache();
+  let changed = false;
+  Object.keys(cache).forEach(key => {
+    const p = cache[key];
+    if (!p) return;
+    if (!isValidProductImage(p.image)) {
+      if (p.image) { p.image = ''; changed = true; }
+    }
+    if (!isValidProductTitle(p.title) && !p.price) {
+      delete cache[key];
+      changed = true;
+    }
+  });
+  if (changed) savePreviewCache(cache);
+}
+
+async function fetchJsonCors(url, timeoutMs = 12000) {
+  const attempts = [
+    async () => {
+      const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!res.ok) throw new Error('direct');
+      return res.json();
+    },
+    async () => {
+      const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!res.ok) throw new Error('corsproxy');
+      return res.json();
+    },
+    async () => {
+      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(Math.max(timeoutMs, 15000)) });
+      if (!res.ok) throw new Error('allorigins');
+      return res.json();
+    }
+  ];
+
+  if (typeof CONFIG !== 'undefined' && CONFIG.previewProxy) {
+    attempts.splice(1, 0, async () => {
+      const proxy = CONFIG.previewProxy + encodeURIComponent(url);
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!res.ok) throw new Error('custom');
+      return res.json();
+    });
+  }
+
+  for (const attempt of attempts) {
+    try {
+      return await attempt();
+    } catch { /* next */ }
+  }
+  return null;
+}
+
 function getCachedPreview(url) {
   const cached = getPreviewCache()[cacheKeyForUrl(url)];
   if (!cached) return null;
-  if (!isValidProductTitle(cached.title) && !cached.price) return null;
+  if (!isValidProductImage(cached.image)) cached.image = '';
+  if (!isValidProductTitle(cached.title) && !cached.price && !cached.image) return null;
   if (cached.image || (isValidProductTitle(cached.title) && cached.price)) return cached;
   return null;
 }
 
 function setCachedPreview(url, preview) {
   if (!url || !preview) return;
+  if (!isValidProductImage(preview.image)) preview.image = '';
   if (!isValidProductTitle(preview.title) && !preview.price && !preview.image) return;
   const cache = getPreviewCache();
   cache[cacheKeyForUrl(url)] = { ...preview, cachedAt: Date.now() };
@@ -135,26 +205,59 @@ function getWbBasketHost(vol) {
   return String(ranges.length + 1).padStart(2, '0');
 }
 
-function wbImageUrl(nm) {
+function wbImageCandidates(nm) {
   const id = Number(nm);
-  if (!id) return '';
+  if (!id) return [];
   const vol = Math.floor(id / 100000);
   const part = Math.floor(id / 1000);
-  const basket = getWbBasketHost(vol);
-  return `https://basket-${basket}.wbbasket.ru/vol${vol}/part${part}/${id}/images/c516x688/1.webp`;
+  const hosts = new Set();
+  hosts.add(getWbBasketHost(vol));
+  const base = parseInt(getWbBasketHost(vol), 10) || 16;
+  for (let d = 0; d <= 8; d++) {
+    hosts.add(String(Math.max(1, base - d)).padStart(2, '0'));
+    hosts.add(String(base + d).padStart(2, '0'));
+  }
+  return [...hosts].map(h => `https://basket-${h}.wbbasket.ru/vol${vol}/part${part}/${id}/images/c516x688/1.webp`);
 }
+
+function wbImageUrl(nm) {
+  return wbImageCandidates(nm)[0] || '';
+}
+
+window.wbImgFallback = function (img) {
+  const nm = img?.dataset?.nm;
+  if (!nm) return;
+  const list = wbImageCandidates(nm);
+  const step = Number(img.dataset.basketTry || 0) + 1;
+  img.dataset.basketTry = step;
+  if (step >= list.length) {
+    img.replaceWith(Object.assign(document.createElement('div'), {
+      className: 'shop-item-img shop-item-img--placeholder',
+      innerHTML: '<i class="fas fa-bag-shopping"></i>'
+    }));
+    return;
+  }
+  img.src = list[step];
+};
 
 async function fetchWbPreview(article) {
   const nm = parseInt(article, 10);
   if (!nm) return null;
   const productUrl = `https://www.wildberries.ru/catalog/${nm}/detail.aspx`;
+  const fallback = {
+    title: '',
+    image: wbImageUrl(nm),
+    price: '',
+    article: String(nm),
+    marketplace: 'wildberries',
+    url: productUrl
+  };
+
   try {
     const api = `https://card.wb.ru/cards/v4/detail?appType=1&curr=rub&dest=-1257786&spp=30&nm=${nm}`;
-    const res = await fetch(api, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return null;
-    const json = await res.json();
+    const json = await fetchJsonCors(api);
     const p = json?.products?.[0];
-    if (!p) return null;
+    if (!p) return fallback;
 
     const size = p.sizes?.[0];
     const priceRaw = size?.price?.product || size?.price?.basic || size?.price?.sale;
@@ -171,7 +274,7 @@ async function fetchWbPreview(article) {
       url: productUrl
     };
   } catch {
-    return null;
+    return fallback;
   }
 }
 
@@ -221,9 +324,8 @@ async function fetchOzonPreview(url, article) {
   try {
     const path = new URL(url).pathname;
     const api = `https://www.ozon.ru/api/composer-api.bx/page/json/v2?url=${encodeURIComponent(path)}`;
-    const res = await fetch(api, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return null;
-    const json = await res.json();
+    const json = await fetchJsonCors(api, 15000);
+    if (!json) return null;
     return parseOzonComposer(json, url, article);
   } catch {
     return null;
@@ -240,7 +342,7 @@ async function fetchMicrolinkPreview(url, parsed) {
     const title = isValidProductTitle(data.title) ? data.title : '';
     const preview = {
       title,
-      image: data.image?.url || data.logo?.url || '',
+      image: isValidProductImage(data.image?.url) ? data.image.url : '',
       price: extractPrice(data.description) || extractPrice(data.title) || '',
       article: parsed?.article || '',
       marketplace: parsed?.marketplace || detectMarketplace(url).id,
@@ -255,9 +357,11 @@ async function fetchMicrolinkPreview(url, parsed) {
 
 function mergePreview(base, extra) {
   if (!extra) return base;
+  const baseImg = isValidProductImage(base?.image) ? base.image : '';
+  const extraImg = isValidProductImage(extra?.image) ? extra.image : '';
   return {
-    title: (isValidProductTitle(extra.title) ? extra.title : '') || base?.title || '',
-    image: extra.image || base?.image || '',
+    title: (isValidProductTitle(extra.title) ? extra.title : '') || (isValidProductTitle(base?.title) ? base.title : '') || '',
+    image: baseImg || extraImg || '',
     price: extra.price || base?.price || '',
     article: extra.article || base?.article || '',
     marketplace: extra.marketplace || base?.marketplace || '',
@@ -266,6 +370,7 @@ function mergePreview(base, extra) {
 }
 
 async function fetchProductPreview(url) {
+  cleanBadPreviewCache();
   const normalized = normalizeShopUrl(url);
   if (!normalized) return null;
 
@@ -282,9 +387,13 @@ async function fetchProductPreview(url) {
   }
 
   const needsMore = !preview || !isValidProductTitle(preview.title) || !preview.price;
-  if (needsMore) {
+  if (needsMore && parsed?.marketplace !== 'wildberries') {
     const micro = await fetchMicrolinkPreview(normalized, parsed);
     preview = mergePreview(preview, micro);
+  }
+
+  if (parsed?.marketplace === 'wildberries' && parsed.article && preview) {
+    if (!isValidProductImage(preview.image)) preview.image = wbImageUrl(parsed.article);
   }
 
   if (preview && (isValidProductTitle(preview.title) || preview.price || preview.image)) {
@@ -300,7 +409,9 @@ async function fetchProductPreview(url) {
 
 function needsPreviewRefresh(item) {
   if (!item?.url || item.source === 'custom') return false;
+  if (isArticleOnlyTitle(item.title)) return true;
   if (!item.image) return true;
+  if (!isValidProductImage(item.image)) return true;
   if (!item.price) return true;
   if (!isValidProductTitle(item.title)) return true;
   return false;
@@ -350,6 +461,7 @@ function refreshItemPreview(item, updateFn, renderFn) {
 
 function loadAllShopPreviews() {
   if (typeof getShopItems !== 'function' || typeof updateShopItem !== 'function') return;
+  cleanBadPreviewCache();
   getShopItems().forEach(item => {
     refreshItemPreview(item, updateShopItem, renderShopping);
   });
