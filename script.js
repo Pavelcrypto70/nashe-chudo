@@ -47,9 +47,10 @@ function getPregnancyState() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const days = daysBetween(getLMP(), today);
-  const week = Math.max(1, Math.min(42, Math.floor(days / 7) + 1));
-  const month = Math.min(9, Math.max(1, Math.ceil(week / 4)));
-  const dayInWeek = days % 7 + 1;
+  // Как в приложениях: «18 недель 1 день» = 18 полных недель + 1 день (не +1 к номеру недели)
+  const week = Math.max(0, Math.min(41, Math.floor(days / 7)));
+  const month = Math.min(9, Math.max(1, Math.ceil(Math.max(week, 1) / 4)));
+  const dayInWeek = days % 7;
   return { week, month, days, dayInWeek };
 }
 
