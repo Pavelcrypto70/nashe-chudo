@@ -125,6 +125,12 @@ function renderSettingsPanel() {
         <label class="settings-field"><span>Заметки</span><textarea id="setHospitalNotes" rows="2">${escapeHtml(s.hospitalNotes)}</textarea></label>
         <button type="button" class="btn-wish btn-wish-outline" id="saveHospitalBtn"><i class="fas fa-check"></i> Сохранить</button>
       </div>
+      <div class="settings-card settings-card-sync">
+        <h3><i class="fas fa-cloud"></i> Общая база</h3>
+        <p class="settings-sync-hint">Галочки, хотелки и заметки синхронизируются между телефоном и ПК через облако Firebase.</p>
+        <div class="sync-status sync-status--off" id="syncStatus"><i class="fas fa-cloud-slash"></i><span>Проверяем...</span></div>
+        <button type="button" class="btn-wish btn-wish-outline btn-sm" id="forceSyncBtn"><i class="fas fa-rotate"></i> Синхронизировать сейчас</button>
+      </div>
       <div class="settings-card settings-card-pwa">
         <h3><i class="fas fa-mobile-screen"></i> На экран iPhone</h3>
         <p class="settings-pwa-hint">Safari → «Поделиться» → «На экран Домой». Сайт откроется как приложение.</p>
@@ -176,6 +182,8 @@ function renderSettingsPanel() {
   });
 
   bindPwaButton();
+  updateSyncStatus?.();
+  document.getElementById('forceSyncBtn')?.addEventListener('click', () => forceSyncNow?.());
 }
 
 function bindSettingsForm() { /* rendered in renderSettingsPanel */ }

@@ -5,10 +5,23 @@ const CONFIG = {
   husbandName: 'Павел',
   wifeName: 'Ира',
   lmpDate: '2026-03-04', // первый день последней менструации (ПМ)
-  dueDate: null
+  dueDate: null,
+  sync: {
+    familyId: 'nashe_chudo_ira_pavel',
+    firebase: {
+      apiKey: 'YOUR_API_KEY',
+      authDomain: 'YOUR_PROJECT.firebaseapp.com',
+      databaseURL: 'https://YOUR_PROJECT-default-rtdb.firebaseio.com',
+      projectId: 'YOUR_PROJECT',
+      appId: 'YOUR_APP_ID'
+    }
+  }
 };
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', async () => {
+  if (typeof initSync === 'function') await initSync();
+  init();
+});
 
 function init() {
   const state = getPregnancyState();
@@ -36,6 +49,45 @@ function init() {
   initSearch();
   setupNav();
   setupNavScrollSpy();
+}
+
+function refreshAllData() {
+  const state = getPregnancyState();
+  activeMonth = state.month;
+
+  if (typeof applyPersonalization === 'function') applyPersonalization();
+  updateCountdown(state);
+  renderThisWeek(state);
+  if (typeof renderCalendar === 'function') renderCalendar();
+  renderMonthTabs(state);
+  renderMonthPanel(activeMonth);
+
+  if (typeof renderStoryGallery === 'function') renderStoryGallery();
+  if (typeof renderMemoriesTabs === 'function') renderMemoriesTabs();
+  if (typeof renderMemoriesPanel === 'function') renderMemoriesPanel();
+
+  if (typeof refreshWishlistUI === 'function') refreshWishlistUI();
+  renderShopping();
+  if (typeof loadAllShopPreviews === 'function') loadAllShopPreviews();
+
+  if (typeof renderChecklistsSection === 'function') renderChecklistsSection();
+  if (typeof renderBenefitChecklists === 'function') renderBenefitChecklists();
+
+  if (typeof renderFirstYearTabs === 'function') renderFirstYearTabs();
+  if (typeof renderFirstYearPanel === 'function') renderFirstYearPanel(activeBabyMonth);
+  if (typeof updateFirstYearOverall === 'function') updateFirstYearOverall();
+
+  if (typeof renderRegionSection === 'function') renderRegionSection();
+  if (typeof refreshGrowth === 'function') refreshGrowth();
+  if (typeof renderEconomySection === 'function') renderEconomySection();
+
+  if (typeof renderToolsTabs === 'function') renderToolsTabs();
+  if (typeof renderToolsPanel === 'function') renderToolsPanel();
+
+  if (typeof renderNames === 'function') renderNames();
+  if (typeof renderGiftCard === 'function') renderGiftCard();
+  if (typeof renderSettingsPanel === 'function') renderSettingsPanel();
+  if (typeof updateSyncStatus === 'function') updateSyncStatus();
 }
 
 /* ─── Расчёт срока (акушерские недели от ПМ) ─── */
