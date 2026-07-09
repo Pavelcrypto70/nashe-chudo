@@ -127,7 +127,7 @@ function renderSettingsPanel() {
       </div>
       <div class="settings-card settings-card-sync">
         <h3><i class="fas fa-cloud"></i> Общая база</h3>
-        <p class="settings-sync-hint">Галочки, товары и заметки сами синхронизируются между телефоном, ПК и ноутбуком Иры — ничего нажимать не нужно.</p>
+        <p class="settings-sync-hint">Галочки, товары и фото альбома сами синхронизируются между всеми устройствами.</p>
         <div class="sync-status sync-status--off" id="syncStatus"><i class="fas fa-cloud-slash"></i><span>Проверяем...</span></div>
         <button type="button" class="btn-wish btn-wish-ghost btn-sm" id="resetCacheBtn"><i class="fas fa-broom"></i> Сбросить кэш</button>
       </div>

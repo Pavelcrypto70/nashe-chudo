@@ -27,10 +27,12 @@ jobs:
 
       - name: Embed cloud snapshot for browser sync
         run: |
-          curl -sfS "https://mantledb.sh/v2/nashe-chudo-ira-pavel-k7m2/family/sync" \
-            -H "X-Mantle-Key: e2f80e6ed00f2ae08874f4b0dd521b5b3f81f8c9b3ccfe0024b2e10a727e6205" \
-            -o sync-data.json
-          node -e "const d=require('./sync-data.json'); if(!d.keys||!Object.keys(d.keys).length) throw new Error('empty cloud snapshot')"
+          KEY="e2f80e6ed00f2ae08874f4b0dd521b5b3f81f8c9b3ccfe0024b2e10a727e6205"
+          NS="nashe-chudo-ira-pavel-k7m2"
+          curl -sfS "https://mantledb.sh/v2/${NS}/family/sync" -H "X-Mantle-Key: ${KEY}" -o sync-main.json
+          curl -sfS "https://mantledb.sh/v2/${NS}/family/album/ultrasound" -H "X-Mantle-Key: ${KEY}" -o blob-ultrasound.json || echo '{}' > blob-ultrasound.json
+          curl -sfS "https://mantledb.sh/v2/${NS}/family/album/story" -H "X-Mantle-Key: ${KEY}" -o blob-story.json || echo '{}' > blob-story.json
+          node scripts/build-sync-snapshot.js
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -22,9 +22,19 @@ function isSyncConfigured() {
   return Boolean(c.namespace && c.key && c.namespace !== 'YOUR_NAMESPACE');
 }
 
+const SYNC_BLOB_PATHS = {
+  nashe_chudo_ultrasound: 'family/album/ultrasound',
+  nashe_chudo_story_photos: 'family/album/story'
+};
+
 function syncApiUrl() {
   const c = getSyncConfig();
   const path = c.path || 'family/sync';
+  return `https://mantledb.sh/v2/${c.namespace}/${path}`;
+}
+
+function syncBlobUrl(path) {
+  const c = getSyncConfig();
   return `https://mantledb.sh/v2/${c.namespace}/${path}`;
 }
 
@@ -86,18 +96,17 @@ function fetchWithTimeout(url, options = {}, ms = 20000) {
   return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
-async function syncRequest(method, body, { silent = false, allowProxy = false } = {}) {
-  const url = syncApiUrl();
+async function syncRequestUrl(targetUrl, method, body, { silent = false, allowProxy = true } = {}) {
   const headers = method === 'GET' ? syncAuthHeaders() : syncWriteHeaders();
   const init = { method, headers };
   if (body != null) init.body = JSON.stringify(body);
 
   const attempts = [
-    () => fetchWithTimeout(url, init, allowProxy ? 15000 : 8000)
+    () => fetchWithTimeout(targetUrl, init, allowProxy ? 20000 : 8000)
   ];
   if (allowProxy) {
     attempts.push(
-      ...SYNC_PROXIES.map(proxy => () => fetchWithTimeout(proxy(url), init, 12000))
+      ...SYNC_PROXIES.map(proxy => () => fetchWithTimeout(proxy(targetUrl), init, 15000))
     );
   }
 
@@ -115,6 +124,10 @@ async function syncRequest(method, body, { silent = false, allowProxy = false } 
 
   if (!silent) console.warn('Sync request failed:', lastErr);
   throw lastErr || new Error('sync failed');
+}
+
+async function syncRequest(method, body, opts = {}) {
+  return syncRequestUrl(syncApiUrl(), method, body, opts);
 }
 
 function getDeviceId() {
@@ -165,12 +178,19 @@ function mergeJsonArraysById(remoteStr, localStr) {
     const r = JSON.parse(remoteStr || '[]');
     const l = JSON.parse(localStr || '[]');
     if (!Array.isArray(r) || !Array.isArray(l)) return pickBetterValue(remoteStr, localStr);
+    const itemKey = item => item?.id || (item?.url ? item.url.slice(0, 120) : '');
     const map = new Map();
-    l.forEach(item => { if (item?.id) map.set(item.id, item); });
+    l.forEach(item => {
+      const k = itemKey(item);
+      if (k) map.set(k, item);
+    });
     r.forEach(item => {
-      if (!item?.id) return;
-      const prev = map.get(item.id);
-      if (!prev || String(item.updatedAt || '') >= String(prev.updatedAt || '')) map.set(item.id, item);
+      const k = itemKey(item);
+      if (!k) return;
+      const prev = map.get(k);
+      if (!prev || String(item.updatedAt || item.date || '') >= String(prev.updatedAt || prev.date || '')) {
+        map.set(k, item);
+      }
     });
     return JSON.stringify([...map.values()]);
   } catch {
@@ -178,7 +198,12 @@ function mergeJsonArraysById(remoteStr, localStr) {
   }
 }
 
-const MERGE_ARRAY_KEYS = ['nashe_chudo_shop_items'];
+const MERGE_ARRAY_KEYS = [
+  'nashe_chudo_shop_items',
+  'nashe_chudo_gifts_wishlist',
+  'nashe_chudo_ultrasound',
+  'nashe_chudo_story_photos'
+];
 
 function mergePayloads(remote, local) {
   const keys = {};
@@ -248,22 +273,60 @@ function scheduleSyncPush() {
   pushTimer = setTimeout(() => pushSyncToCloud(false), SYNC_DEBOUNCE_MS);
 }
 
+async function pullAlbumBlobs() {
+  const out = {};
+  for (const [key, path] of Object.entries(SYNC_BLOB_PATHS)) {
+    try {
+      const res = await syncRequestUrl(syncBlobUrl(path), 'GET', null, { silent: true, allowProxy: true });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data?.value) out[key] = data.value;
+    } catch { /* try next blob */ }
+  }
+  return out;
+}
+
+async function pushAlbumBlobs(keys, opts = {}) {
+  for (const [key, path] of Object.entries(SYNC_BLOB_PATHS)) {
+    const val = keys?.[key];
+    if (!val || val.length < 3) continue;
+    if (val.length > 62000) {
+      console.warn('Album too large for cloud — сожмите фото:', key);
+      continue;
+    }
+    const body = {
+      updatedAt: Date.now(),
+      deviceId: getDeviceId(),
+      device: getDeviceLabel(),
+      value: val
+    };
+    await syncRequestUrl(syncBlobUrl(path), 'POST', body, { silent: true, allowProxy: true, ...opts });
+  }
+}
+
 async function pullRemoteForMerge() {
+  let main = null;
   try {
     const res = await syncRequest('GET', null, { silent: true, allowProxy: true });
-    if (res.status === 404) return null;
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.keys && payloadScore(data) > 0) return data;
-    }
-  } catch { /* fallback to mirror */ }
-  return pullFromLocalMirror();
+    if (res.ok) main = await res.json();
+  } catch { /* fallback */ }
+
+  if (!main?.keys) main = await pullFromLocalMirror();
+  if (!main) main = { keys: {}, updatedAt: 0 };
+
+  const blobs = await pullAlbumBlobs();
+  main.keys = { ...main.keys, ...blobs };
+  return payloadScore(main) > 0 ? main : null;
 }
 
 async function pushPayloadToCloud(payload, { silent = false, allowProxy = true } = {}) {
   lastPushAt = payload.updatedAt;
-  const res = await syncRequest('POST', payload, { silent, allowProxy });
+  const leanKeys = { ...payload.keys };
+  Object.keys(SYNC_BLOB_PATHS).forEach(k => delete leanKeys[k]);
+  const lean = { ...payload, keys: leanKeys };
+  const res = await syncRequest('POST', lean, { silent, allowProxy });
   if (!res.ok) throw new Error('push failed');
+  await pushAlbumBlobs(payload.keys, { silent: true, allowProxy: true });
   syncStatus = 'live';
   updateSyncStatusUI();
 }

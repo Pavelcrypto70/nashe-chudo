@@ -40,7 +40,7 @@ function getStoryPhotos() {
 }
 function saveStoryPhotos(p) { localStorage.setItem(STORY_PHOTOS_KEY, JSON.stringify(p)); }
 
-function readImageFile(file, maxSize = 1200) {
+function readImageFile(file, maxSize = 900) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) {
       reject(new Error('not an image'));
@@ -64,7 +64,7 @@ function readImageFile(file, maxSize = 1200) {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.82));
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
       };
       img.onerror = reject;
       img.src = reader.result;
@@ -269,7 +269,14 @@ function onUltrasoundSubmit(e) {
 
   const save = url => {
     const items = getUltrasound();
-    items.push({ week: fd.get('week'), date: fd.get('date'), url, caption: fd.get('caption') });
+    items.push({
+      id: 'us_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      week: fd.get('week'),
+      date: fd.get('date'),
+      url,
+      caption: fd.get('caption'),
+      updatedAt: new Date().toISOString()
+    });
     saveUltrasound(items.sort((a, b) => new Date(a.date) - new Date(b.date)));
     form.reset();
     renderMemoriesPanel();
@@ -316,7 +323,12 @@ function onStoryPhotoSubmit(e) {
 
   const save = url => {
     const photos = getStoryPhotos();
-    photos.push({ url, caption: fd.get('caption') });
+    photos.push({
+      id: 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      url,
+      caption: fd.get('caption'),
+      updatedAt: new Date().toISOString()
+    });
     saveStoryPhotos(photos);
     form.reset();
     renderStoryGallery();
