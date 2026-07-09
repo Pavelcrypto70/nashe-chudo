@@ -6,6 +6,8 @@ const BACKUP_KEYS = [
   'nashe_chudo_shop_custom',
   'nashe_chudo_shop_links',
   'nashe_chudo_wishlist',
+  'nashe_chudo_shop_items',
+  'nashe_chudo_shop_migrated_v2',
   'nashe_chudo_checklists',
   'nashe_chudo_growth',
   'nashe_chudo_savings',
@@ -62,22 +64,9 @@ function initBackup() {
     if (file) importBackup(file);
     e.target.value = '';
   });
-  document.getElementById('exportShoppingBtn')?.addEventListener('click', exportShoppingList);
-}
-
-function exportShoppingList() {
-  const choices = getChoices();
-  const lines = ['🛒 Наш список к родам\n'];
-  SHOPPING_CATEGORIES.forEach(cat => {
-    const optId = choices[cat.id];
-    if (!optId) return;
-    const opt = findOption(cat, optId);
-    if (!opt) return;
-    const url = resolveOptionUrl(cat, opt);
-    lines.push(`• ${cat.title}: ${opt.name}${opt.price && opt.price !== '—' ? ' (' + opt.price + ')' : ''}${url ? '\n  ' + url : ''}`);
+  document.getElementById('exportShoppingBtn')?.addEventListener('click', () => {
+    if (typeof exportShoppingList === 'function') exportShoppingList();
   });
-  const text = lines.join('\n');
-  copyToClipboard(text);
 }
 
 const SEARCH_INDEX = [];
@@ -90,8 +79,7 @@ function buildSearchIndex() {
   add('Календарь', 'узи анализы декрет пдр', '#calendar');
   add('История', 'любовь история', '#story');
   add('Месяцы беременности', 'путеводитель анализы', '#journey');
-  add('Хотелки', 'рилс instagram', '#wishlist');
-  add('К родам', 'покупки коляска кроватка', '#shopping');
+  add('К родам', 'покупки коляска кроватка wildberries ozon хотелки', '#shopping');
   add('Чек-листы', 'готовность роддом', '#checklists');
   add('Первый год', 'прививки педиатр', '#first-year');
   add('Рост и вес', 'график педиатр', '#growth');
@@ -108,7 +96,6 @@ function buildSearchIndex() {
   if (typeof SHOPPING_CATEGORIES !== 'undefined') {
     SHOPPING_CATEGORIES.forEach(c => {
       add(c.title, c.quantity, '#shopping');
-      c.options.forEach(o => add(o.name, o.note + ' ' + c.title, '#shopping'));
     });
   }
   if (typeof CHECKLISTS !== 'undefined') {

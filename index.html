@@ -33,7 +33,6 @@
       <a href="#story" class="nav-link">История</a>
       <a href="#memories" class="nav-link">Альбом</a>
       <a href="#journey" class="nav-link">Месяцы</a>
-      <a href="#wishlist" class="nav-link">Хотелки</a>
       <a href="#shopping" class="nav-link">К родам</a>
       <a href="#names" class="nav-link">Имена</a>
       <a href="#tools" class="nav-link">Помощники</a>
@@ -159,67 +158,15 @@
     </div>
   </section>
 
-  <!-- Wishlist -->
-  <section class="section section-alt" id="wishlist">
-    <div class="container">
-      <div class="section-head">
-        <span class="section-tag">Сохранёнки</span>
-        <h2 class="section-title">Хотелки</h2>
-        <p class="section-desc">Вставь ссылку на рилс — подтянем заставку. Нажми на карточку — откроется приложение Instagram.</p>
-      </div>
-
-      <div class="wish-hint">
-        <i class="fas fa-info-circle"></i>
-        <span>Instagram в браузере в РФ не работает — поэтому смотрим превью здесь, а видео открываем в приложении на телефоне.</span>
-      </div>
-
-      <form class="wish-form" id="wishForm">
-        <input type="hidden" id="wishEditId" value="">
-        <div class="wish-form-row wish-form-row-main">
-          <label class="wish-field wish-field-grow">
-            <span>Ссылка на рилс</span>
-            <input type="url" id="wishUrl" placeholder="https://www.instagram.com/reel/..." required>
-          </label>
-          <button type="submit" class="btn-wish btn-wish-primary" id="wishSubmitBtn"><i class="fas fa-plus"></i> Добавить хотелку</button>
-        </div>
-        <div class="wish-form-grid">
-          <label class="wish-field">
-            <span>Название</span>
-            <input type="text" id="wishTitle" placeholder="Коляска, кроватка, комбинезон...">
-          </label>
-          <label class="wish-field">
-            <span>Категория</span>
-            <select id="wishCategory"></select>
-          </label>
-          <label class="wish-field">
-            <span>Цена (если знаешь)</span>
-            <input type="text" id="wishPrice" placeholder="~45 000 ₽">
-          </label>
-        </div>
-        <label class="wish-field wish-field-full">
-          <span>Заставка — ссылка на картинку (необязательно)</span>
-          <input type="url" id="wishThumb" placeholder="Если превью не подтянулось — вставь ссылку на фото или скрин">
-        </label>
-        <label class="wish-field wish-field-full">
-          <span>Заметка — почему понравилось</span>
-          <textarea id="wishDesc" rows="2" placeholder="Цвет, функции, отзывы из рилса..."></textarea>
-        </label>
-        <button type="button" class="btn-wish btn-wish-ghost wish-cancel" id="wishCancelEdit" hidden>Отменить редактирование</button>
-      </form>
-
-      <div class="wishlist-filters" id="wishlistFilters"></div>
-      <div class="wishlist-grid" id="wishlistGrid" data-filter="all"></div>
-    </div>
-  </section>
-
   <!-- Shopping -->
-  <section class="section" id="shopping">
+  <section class="section section-alt" id="shopping">
     <div class="container">
       <div class="section-head">
         <span class="section-tag">Подготовка</span>
-        <h2 class="section-title">Всё к родам и первым месяцам</h2>
-        <p class="section-desc">Сколько нужно и какой бренд выбрать — ссылка с Ozon/WB покажет фото и цену.</p>
+        <h2 class="section-title">К родам — наш список</h2>
+        <p class="section-desc">Всё по категориям: добавляйте товары с Wildberries и Ozon по ссылке или артикулу — подтянем карточку и цену. Или вручную с любого сайта.</p>
       </div>
+      <div class="shopping-filters" id="shoppingFilters"></div>
       <div class="shopping-grid" id="shoppingGrid"></div>
       <div class="shopping-summary" id="shoppingSummary">
         <h3>Ваш выбор</h3>
@@ -455,11 +402,11 @@
 <script src="settings.js"></script>
 <script src="checklists.js"></script>
 <script src="economy.js"></script>
-<script src="wishlist.js"></script>
 <script src="first-year.js"></script>
 <script src="region.js"></script>
 <script src="growth.js"></script>
 <script src="product-preview.js"></script>
+<script src="shopping.js"></script>
 <script src="calendar.js"></script>
 <script src="baby-life.js"></script>
 <script src="memories.js"></script>
