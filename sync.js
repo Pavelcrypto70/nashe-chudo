@@ -38,8 +38,39 @@ function syncWriteHeaders() {
 
 const SYNC_PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://proxy.cors.sh/${url}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
 ];
+
+function syncMirrorUrl() {
+  return `sync-data.json?t=${Date.now()}`;
+}
+
+async function pullFromLocalMirror() {
+  try {
+    const res = await fetchWithTimeout(syncMirrorUrl(), { cache: 'no-store' }, 6000);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.keys || payloadScore(data) < 1) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function pullFromPublicCloud() {
+  try {
+    const res = await fetchWithTimeout(syncApiUrl(), { method: 'GET' }, 8000);
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.keys || payloadScore(data) < 1) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 function fetchWithTimeout(url, options = {}, ms = 20000) {
   const ctrl = new AbortController();
@@ -209,8 +240,15 @@ async function pushSyncToCloud(allowOverwrite = false) {
 
 async function pullSyncFromCloud({ silent = false, allowProxy = false } = {}) {
   if (!isSyncConfigured()) return null;
+
+  const mirror = await pullFromLocalMirror();
+  if (mirror) return mirror;
+
+  const pub = await pullFromPublicCloud();
+  if (pub) return pub;
+
   try {
-    const res = await syncRequest('GET', null, { silent, allowProxy });
+    const res = await syncRequest('GET', null, { silent: true, allowProxy });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('pull failed');
     return res.json();
@@ -306,9 +344,13 @@ async function initSync() {
     }
 
     syncReady = true;
-    syncStatus = 'live';
-    startSyncPolling();
-    if (syncChanged) refreshAfterSync();
+    if (remote?.keys && payloadScore(remote) > 0) {
+      syncStatus = 'live';
+      startSyncPolling();
+      if (syncChanged) refreshAfterSync();
+    } else {
+      syncStatus = 'error';
+    }
   } catch (err) {
     console.error('Sync error:', err);
     syncStatus = 'error';
@@ -325,7 +367,7 @@ function updateSyncStatusUI() {
     off: { icon: 'fa-cloud-slash', text: 'Синхронизация не настроена' },
     connecting: { icon: 'fa-spinner fa-spin', text: 'Загружаем общие данные...' },
     live: { icon: 'fa-cloud', text: 'Общая база работает — изменения синхронизируются' },
-    error: { icon: 'fa-triangle-exclamation', text: 'Облако недоступно (не интернет!) — нажмите «Загрузить из облака» или «Сбросить кэш»' }
+    error: { icon: 'fa-triangle-exclamation', text: 'Облако напрямую недоступно — нажмите «Загрузить из облака» (читает копию с сайта)' }
   }[syncStatus] || { icon: 'fa-cloud', text: '' };
 
   el.className = 'sync-status sync-status--' + syncStatus;

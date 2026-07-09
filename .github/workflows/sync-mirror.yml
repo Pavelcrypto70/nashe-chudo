@@ -1,0 +1,38 @@
+name: Mirror cloud sync to site
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - sync-data.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download cloud snapshot
+        run: |
+          curl -sfS "https://mantledb.sh/v2/nashe-chudo-ira-pavel-k7m2/family/sync" \
+            -H "X-Mantle-Key: e2f80e6ed00f2ae08874f4b0dd521b5b3f81f8c9b3ccfe0024b2e10a727e6205" \
+            -o sync-data.json
+          node -e "const d=require('./sync-data.json'); if(!d.keys) process.exit(1)"
+
+      - name: Commit mirror if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sync-data.json
+          git diff --staged --quiet || git commit -m "Mirror cloud sync snapshot"
+          git push
