@@ -34,6 +34,12 @@ function syncHeaders() {
   };
 }
 
+function fetchWithTimeout(url, options = {}, ms = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 function collectSyncPayload() {
   const keys = {};
   BACKUP_KEYS.forEach(key => {
@@ -54,8 +60,11 @@ function applySyncPayload(data) {
   applyingRemote = true;
   lastRemoteAt = data.updatedAt;
   BACKUP_KEYS.forEach(key => {
-    if (Object.prototype.hasOwnProperty.call(data.keys, key)) {
+    if (!Object.prototype.hasOwnProperty.call(data.keys, key)) return;
+    try {
       origSetItem(key, data.keys[key]);
+    } catch (err) {
+      console.warn('Sync skip key (quota?):', key, err);
     }
   });
   applyingRemote = false;
@@ -73,7 +82,7 @@ async function pushSyncToCloud() {
   const payload = collectSyncPayload();
   lastPushAt = payload.updatedAt;
   try {
-    const res = await fetch(syncApiUrl(), {
+    const res = await fetchWithTimeout(syncApiUrl(), {
       method: 'POST',
       headers: syncHeaders(),
       body: JSON.stringify(payload)
@@ -90,7 +99,7 @@ async function pushSyncToCloud() {
 async function pullSyncFromCloud() {
   if (!isSyncConfigured()) return null;
   try {
-    const res = await fetch(syncApiUrl(), { headers: syncHeaders() });
+    const res = await fetchWithTimeout(syncApiUrl(), { headers: syncHeaders() });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('pull failed');
     return res.json();

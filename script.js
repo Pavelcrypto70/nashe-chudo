@@ -13,12 +13,28 @@ const CONFIG = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', async () => {
-  if (typeof initSync === 'function') await initSync();
+document.addEventListener('DOMContentLoaded', () => {
   init();
+  if (typeof initSync === 'function') {
+    initSync()
+      .then(() => { if (typeof refreshAllData === 'function') refreshAllData(); })
+      .catch(err => console.error('Sync failed:', err));
+  }
 });
 
 function init() {
+  try {
+    runInit();
+  } catch (err) {
+    console.error('Init failed:', err);
+    const panel = document.getElementById('thisWeekPanel');
+    if (panel) {
+      panel.innerHTML = '<p class="mem-empty">Не удалось загрузить данные. Обновите страницу или очистите кэш браузера.</p>';
+    }
+  }
+}
+
+function runInit() {
   const state = getPregnancyState();
   activeMonth = state.month;
 
@@ -167,12 +183,22 @@ function updateCountdown(state) {
   if (progText) progText.textContent = progress + '% пути пройдено';
 }
 
+function getPregnancyMonthData(state) {
+  const byMonth = PREGNANCY_MONTHS.find(m => m.month === state.month);
+  if (byMonth) return byMonth;
+  const w = Math.max(1, state.week || 1);
+  return PREGNANCY_MONTHS.find(m => {
+    const parts = m.weeks.split(/[–-]/).map(Number);
+    return parts.length === 2 && w >= parts[0] && w <= parts[1];
+  }) || PREGNANCY_MONTHS[0];
+}
+
 /* ─── Блок «На этой неделе» ─── */
 function renderThisWeek(state) {
   const el = document.getElementById('thisWeekPanel');
   if (!el) return;
 
-  const monthData = PREGNANCY_MONTHS.find(m => m.month === state.month);
+  const monthData = getPregnancyMonthData(state);
   if (!monthData) return;
 
   const benefitHint = state.week >= 28
