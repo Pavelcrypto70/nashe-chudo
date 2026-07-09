@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: read
@@ -22,6 +24,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Embed cloud snapshot for browser sync
+        run: |
+          curl -sfS "https://mantledb.sh/v2/nashe-chudo-ira-pavel-k7m2/family/sync" \
+            -H "X-Mantle-Key: e2f80e6ed00f2ae08874f4b0dd521b5b3f81f8c9b3ccfe0024b2e10a727e6205" \
+            -o sync-data.json
+          node -e "const d=require('./sync-data.json'); if(!d.keys||!Object.keys(d.keys).length) throw new Error('empty cloud snapshot')"
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

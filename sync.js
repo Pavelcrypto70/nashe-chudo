@@ -48,15 +48,23 @@ function syncMirrorUrl() {
 }
 
 async function pullFromLocalMirror() {
-  try {
-    const res = await fetchWithTimeout(syncMirrorUrl(), { cache: 'no-store' }, 6000);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data?.keys || payloadScore(data) < 1) return null;
-    return data;
-  } catch {
-    return null;
+  const urls = [
+    syncMirrorUrl(),
+    `https://raw.githubusercontent.com/Pavelcrypto70/nashe-chudo/main/sync-data.json?t=${Date.now()}`
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetchWithTimeout(url, { cache: 'no-store' }, 8000);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data?.keys || payloadScore(data) < 1) continue;
+      return data;
+    } catch {
+      /* try next source */
+    }
   }
+  return null;
 }
 
 async function pullFromPublicCloud() {
@@ -152,10 +160,35 @@ function pickBetterValue(a, b) {
   return a.length >= b.length ? a : b;
 }
 
+function mergeJsonArraysById(remoteStr, localStr) {
+  try {
+    const r = JSON.parse(remoteStr || '[]');
+    const l = JSON.parse(localStr || '[]');
+    if (!Array.isArray(r) || !Array.isArray(l)) return pickBetterValue(remoteStr, localStr);
+    const map = new Map();
+    l.forEach(item => { if (item?.id) map.set(item.id, item); });
+    r.forEach(item => {
+      if (!item?.id) return;
+      const prev = map.get(item.id);
+      if (!prev || String(item.updatedAt || '') >= String(prev.updatedAt || '')) map.set(item.id, item);
+    });
+    return JSON.stringify([...map.values()]);
+  } catch {
+    return pickBetterValue(remoteStr, localStr);
+  }
+}
+
+const MERGE_ARRAY_KEYS = ['nashe_chudo_shop_items'];
+
 function mergePayloads(remote, local) {
   const keys = {};
   BACKUP_KEYS.forEach(key => {
-    const merged = pickBetterValue(remote?.keys?.[key], local?.keys?.[key]);
+    let merged;
+    if (MERGE_ARRAY_KEYS.includes(key)) {
+      merged = mergeJsonArraysById(remote?.keys?.[key], local?.keys?.[key]);
+    } else {
+      merged = pickBetterValue(remote?.keys?.[key], local?.keys?.[key]);
+    }
     if (merged != null) keys[key] = merged;
   });
   return {
@@ -164,6 +197,27 @@ function mergePayloads(remote, local) {
     device: getDeviceLabel(),
     deviceId: getDeviceId()
   };
+}
+
+function applyCloudSnapshot(remote) {
+  if (!remote?.keys) return false;
+
+  applyingRemote = true;
+  if (remote.updatedAt) lastRemoteAt = remote.updatedAt;
+
+  BACKUP_KEYS.forEach(key => {
+    if (!Object.prototype.hasOwnProperty.call(remote.keys, key)) return;
+    const val = remote.keys[key];
+    if (val == null) return;
+    try {
+      origSetItem(key, val);
+    } catch (err) {
+      console.warn('Sync skip key (quota?):', key, err);
+    }
+  });
+
+  applyingRemote = false;
+  return true;
 }
 
 function applySyncPayload(data, force = false) {
@@ -328,16 +382,8 @@ async function initSync() {
     let syncChanged = false;
 
     if (remote?.keys && payloadScore(remote) > 0) {
-      const remoteScore = payloadScore(remote);
-      const localScore = payloadScore(local);
-
-      if (remoteScore >= localScore) {
-        syncChanged = applySyncPayload(remote, true);
-      } else {
-        const merged = mergePayloads(remote, local);
-        syncChanged = applySyncPayload(merged, true);
-        await pushPayloadToCloud(merged);
-      }
+      const merged = mergePayloads(remote, local);
+      syncChanged = applySyncPayload(merged, true);
     } else if (payloadScore(local) > 50) {
       await pushPayloadToCloud(local);
       lastRemoteAt = local.updatedAt;
@@ -384,29 +430,23 @@ async function forceSyncNow() {
   updateSyncStatusUI();
 
   try {
-    const remote = await pullSyncFromCloud({ silent: false, allowProxy: true });
+    const remote = await pullSyncFromCloud({ silent: true, allowProxy: true });
     if (!remote?.keys || payloadScore(remote) < 1) {
-      showToast?.('В облаке пока нет данных');
+      showToast?.('В облаке пока нет данных — подождите 2 мин и попробуйте снова');
       syncStatus = syncReady ? 'live' : 'error';
       updateSyncStatusUI();
       return;
     }
 
-    const local = collectSyncPayload();
-    const remoteScore = payloadScore(remote);
-    const localScore = payloadScore(local);
-
-    if (remoteScore >= localScore) {
-      applySyncPayload(remote, true);
-    } else {
-      const merged = mergePayloads(remote, local);
-      applySyncPayload(merged, true);
-    }
+    applyCloudSnapshot(remote);
 
     syncReady = true;
     syncStatus = 'live';
     refreshAfterSync();
-    showToast?.('Данные из облака загружены');
+
+    let shopCount = 0;
+    try { shopCount = JSON.parse(localStorage.getItem('nashe_chudo_shop_items') || '[]').length; } catch { /* ignore */ }
+    showToast?.(`Загружено из облака. К родам: ${shopCount} товаров`);
   } catch {
     syncStatus = 'error';
     showToast?.('Не удалось загрузить из облака');
