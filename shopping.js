@@ -59,11 +59,14 @@ async function addMarketplaceItem(categoryId, rawInput) {
 
   const preview = await fetchProductPreview(parsed.url);
   const mp = detectMarketplace(parsed.url);
+  const title = isValidProductTitle(preview?.title)
+    ? preview.title
+    : (preview?.article ? `Арт. ${preview.article}` : `Товар ${mp.name}`);
   const item = {
     id: generateShopItemId(),
     categoryId,
     source: 'marketplace',
-    title: preview?.title || `Товар ${mp.name}`,
+    title,
     price: preview?.price || '',
     article: parsed.article || preview?.article || '',
     url: parsed.url,

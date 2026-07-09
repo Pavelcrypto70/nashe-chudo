@@ -54,11 +54,14 @@ async function addGiftMarketplaceItem(categoryId, rawInput) {
 
   const preview = await fetchProductPreview(parsed.url);
   const mp = detectMarketplace(parsed.url);
+  const title = isValidProductTitle(preview?.title)
+    ? preview.title
+    : (preview?.article ? `Арт. ${preview.article}` : `Подарок ${mp.name}`);
   const item = {
     id: generateGiftId(),
     categoryId,
     source: 'marketplace',
-    title: preview?.title || `Подарок ${mp.name}`,
+    title,
     price: preview?.price || '',
     article: parsed.article || preview?.article || '',
     url: parsed.url,
@@ -299,25 +302,8 @@ function exportGiftsList() {
   copyToClipboard?.(lines.join('\n'));
 }
 
-function loadAllGiftPreviews() {
-  getGiftItems().forEach(item => {
-    if (item.url && item.source === 'marketplace' && !item.image) {
-      fetchProductPreview(item.url).then(preview => {
-        if (!preview) return;
-        updateGiftItem(item.id, {
-          title: item.title || preview.title,
-          price: item.price || preview.price,
-          image: preview.image,
-          article: item.article || preview.article
-        });
-        renderGiftsWishlist();
-      });
-    }
-  });
-}
-
 function initGiftsWishlist() {
   renderGiftsWishlist();
-  loadAllGiftPreviews();
+  if (typeof loadAllGiftPreviews === 'function') loadAllGiftPreviews();
   document.getElementById('exportGiftsBtn')?.addEventListener('click', exportGiftsList);
 }
