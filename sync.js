@@ -47,16 +47,20 @@ function fetchWithTimeout(url, options = {}, ms = 20000) {
   return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
-async function syncRequest(method, body, { silent = false } = {}) {
+async function syncRequest(method, body, { silent = false, allowProxy = false } = {}) {
   const url = syncApiUrl();
   const headers = method === 'GET' ? syncAuthHeaders() : syncWriteHeaders();
   const init = { method, headers };
   if (body != null) init.body = JSON.stringify(body);
 
   const attempts = [
-    () => fetchWithTimeout(url, init),
-    ...SYNC_PROXIES.map(proxy => () => fetchWithTimeout(proxy(url), init))
+    () => fetchWithTimeout(url, init, allowProxy ? 15000 : 8000)
   ];
+  if (allowProxy) {
+    attempts.push(
+      ...SYNC_PROXIES.map(proxy => () => fetchWithTimeout(proxy(url), init, 12000))
+    );
+  }
 
   let lastErr = null;
   for (const attempt of attempts) {
@@ -159,9 +163,9 @@ function scheduleSyncPush() {
   pushTimer = setTimeout(() => pushSyncToCloud(false), SYNC_DEBOUNCE_MS);
 }
 
-async function pushPayloadToCloud(payload, { silent = false } = {}) {
+async function pushPayloadToCloud(payload, { silent = false, allowProxy = false } = {}) {
   lastPushAt = payload.updatedAt;
-  const res = await syncRequest('POST', payload, { silent });
+  const res = await syncRequest('POST', payload, { silent, allowProxy });
   if (!res.ok) throw new Error('push failed');
   syncStatus = 'live';
   updateSyncStatusUI();
@@ -175,7 +179,7 @@ async function pushSyncToCloud(allowOverwrite = false) {
 
   try {
     if (!allowOverwrite) {
-      const remote = await pullSyncFromCloud();
+      const remote = await pullSyncFromCloud({ silent: true, allowProxy: false });
       if (remote?.keys) {
         const remoteScore = payloadScore(remote);
         const localScore = payloadScore(local);
@@ -203,10 +207,10 @@ async function pushSyncToCloud(allowOverwrite = false) {
   }
 }
 
-async function pullSyncFromCloud({ silent = false } = {}) {
+async function pullSyncFromCloud({ silent = false, allowProxy = false } = {}) {
   if (!isSyncConfigured()) return null;
   try {
-    const res = await syncRequest('GET', null, { silent });
+    const res = await syncRequest('GET', null, { silent, allowProxy });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('pull failed');
     return res.json();
@@ -277,18 +281,23 @@ async function initSync() {
   updateSyncStatusUI();
 
   try {
-    const remote = await pullSyncFromCloud();
+    let remote = await pullSyncFromCloud({ silent: true, allowProxy: false });
+    if (!remote?.keys) {
+      remote = await pullSyncFromCloud({ silent: true, allowProxy: true });
+    }
     const local = collectSyncPayload();
+
+    let syncChanged = false;
 
     if (remote?.keys && payloadScore(remote) > 0) {
       const remoteScore = payloadScore(remote);
       const localScore = payloadScore(local);
 
       if (remoteScore >= localScore) {
-        applySyncPayload(remote, true);
+        syncChanged = applySyncPayload(remote, true);
       } else {
         const merged = mergePayloads(remote, local);
-        applySyncPayload(merged, true);
+        syncChanged = applySyncPayload(merged, true);
         await pushPayloadToCloud(merged);
       }
     } else if (payloadScore(local) > 50) {
@@ -299,6 +308,7 @@ async function initSync() {
     syncReady = true;
     syncStatus = 'live';
     startSyncPolling();
+    if (syncChanged) refreshAfterSync();
   } catch (err) {
     console.error('Sync error:', err);
     syncStatus = 'error';
@@ -332,7 +342,7 @@ async function forceSyncNow() {
   updateSyncStatusUI();
 
   try {
-    const remote = await pullSyncFromCloud();
+    const remote = await pullSyncFromCloud({ silent: false, allowProxy: true });
     if (!remote?.keys || payloadScore(remote) < 1) {
       showToast?.('В облаке пока нет данных');
       syncStatus = syncReady ? 'live' : 'error';

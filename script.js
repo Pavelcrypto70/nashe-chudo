@@ -13,15 +13,11 @@ const CONFIG = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', async () => {
-  if (typeof initSync === 'function') {
-    try {
-      await initSync();
-    } catch (err) {
-      console.error('Sync failed:', err);
-    }
-  }
+document.addEventListener('DOMContentLoaded', () => {
   init();
+  if (typeof initSync === 'function') {
+    initSync().catch(err => console.error('Sync failed:', err));
+  }
 });
 
 function init() {
@@ -36,31 +32,39 @@ function init() {
   }
 }
 
+function safeInit(label, fn) {
+  try {
+    if (typeof fn === 'function') fn();
+  } catch (err) {
+    console.error(`Init error (${label}):`, err);
+  }
+}
+
 function runInit() {
   const state = getPregnancyState();
   activeMonth = state.month;
 
-  initSettings();
-  updateCountdown(state);
-  renderThisWeek(state);
-  initCalendar();
-  renderMonthTabs(state);
-  renderMonthPanel(activeMonth);
-  initMemories();
-  initShopping();
-  initGiftsWishlist();
-  initChecklists();
-  initFirstYear();
-  initRegion();
-  initGrowth();
-  initEconomy();
-  initTools();
-  initNames();
-  renderGiftCard();
-  initBackup();
-  initSearch();
-  setupNav();
-  setupNavScrollSpy();
+  safeInit('initSettings', initSettings);
+  safeInit('updateCountdown', () => updateCountdown(state));
+  safeInit('renderThisWeek', () => renderThisWeek(state));
+  safeInit('initCalendar', initCalendar);
+  safeInit('renderMonthTabs', () => renderMonthTabs(state));
+  safeInit('renderMonthPanel', () => renderMonthPanel(activeMonth));
+  safeInit('initMemories', initMemories);
+  safeInit('initShopping', initShopping);
+  safeInit('initGiftsWishlist', initGiftsWishlist);
+  safeInit('initChecklists', initChecklists);
+  safeInit('initFirstYear', initFirstYear);
+  safeInit('initRegion', initRegion);
+  safeInit('initGrowth', initGrowth);
+  safeInit('initEconomy', initEconomy);
+  safeInit('initTools', initTools);
+  safeInit('initNames', initNames);
+  safeInit('renderGiftCard', renderGiftCard);
+  safeInit('initBackup', initBackup);
+  safeInit('initSearch', initSearch);
+  safeInit('setupNav', setupNav);
+  safeInit('setupNavScrollSpy', setupNavScrollSpy);
 }
 
 function refreshAllData() {
