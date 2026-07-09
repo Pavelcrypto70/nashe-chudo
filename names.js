@@ -24,7 +24,10 @@ function inferNameGender(name) {
 function getNamesState() {
   try { return JSON.parse(localStorage.getItem(NAMES_KEY)) || {}; } catch { return {}; }
 }
-function saveNamesState(s) { localStorage.setItem(NAMES_KEY, JSON.stringify(s)); }
+function saveNamesState(s) {
+  localStorage.setItem(NAMES_KEY, JSON.stringify(s));
+  notifyDataChanged?.();
+}
 
 function ensureNamesState() {
   const state = getNamesState();
@@ -34,6 +37,7 @@ function ensureNamesState() {
 
   boys.forEach(n => {
     const key = n.toLowerCase();
+    if (state[key]?.hidden) return;
     if (!state[key]) {
       state[key] = { name: n, vote: null, gender: 'male' };
       changed = true;
@@ -41,6 +45,7 @@ function ensureNamesState() {
   });
   girls.forEach(n => {
     const key = n.toLowerCase();
+    if (state[key]?.hidden) return;
     if (!state[key]) {
       state[key] = { name: n, vote: null, gender: 'female' };
       changed = true;
@@ -65,33 +70,54 @@ function sortNames(list) {
   });
 }
 
+function setNameVote(key, vote) {
+  const state = getNamesState();
+  if (!state[key] || state[key].hidden) return;
+  state[key].vote = state[key].vote === vote ? null : vote;
+  state[key].updatedAt = new Date().toISOString();
+  saveNamesState(state);
+  renderNames();
+}
+
+function removeName(key) {
+  const state = getNamesState();
+  if (!state[key]) return;
+  const isDefault = getBoyNamesSet().has(key) || getGirlNamesSet().has(key);
+  if (isDefault) {
+    state[key].hidden = true;
+    state[key].vote = null;
+    state[key].updatedAt = new Date().toISOString();
+  } else {
+    delete state[key];
+  }
+  saveNamesState(state);
+  renderNames();
+}
+
 function initNames() {
   const grid = document.getElementById('namesGrid');
   if (grid && !grid.dataset.bound) {
     grid.dataset.bound = '1';
     grid.addEventListener('click', e => {
-      const voteBtn = e.target.closest('[data-vote]');
+      const voteBtn = e.target.closest('.name-vote');
       if (voteBtn) {
-        const state = getNamesState();
-        const key = voteBtn.dataset.nameKey;
-        const vote = voteBtn.dataset.vote;
-        if (!state[key]) return;
-        state[key].vote = state[key].vote === vote ? null : vote;
-        saveNamesState(state);
-        renderNames();
+        e.preventDefault();
+        e.stopPropagation();
+        setNameVote(voteBtn.dataset.nameKey, voteBtn.dataset.vote);
         return;
       }
-      const delBtn = e.target.closest('[data-del-name]');
+      const delBtn = e.target.closest('.name-del');
       if (delBtn) {
-        const state = getNamesState();
-        delete state[delBtn.dataset.delName];
-        saveNamesState(state);
-        renderNames();
+        e.preventDefault();
+        e.stopPropagation();
+        removeName(delBtn.dataset.delName);
       }
     });
   }
 
   document.querySelectorAll('.name-gender-btn').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
     btn.addEventListener('click', () => {
       nameAddGender = btn.dataset.gender;
       document.querySelectorAll('.name-gender-btn').forEach(b => {
@@ -101,23 +127,30 @@ function initNames() {
   });
 
   renderNames();
-  document.getElementById('nameAddForm')?.addEventListener('submit', e => {
-    e.preventDefault();
-    const input = document.getElementById('nameAddInput');
-    const name = (input?.value || '').trim();
-    if (!name) return;
-    const state = getNamesState();
-    const key = name.toLowerCase();
-    if (!state[key]) {
-      state[key] = { name, vote: null, gender: nameAddGender };
-    } else {
-      state[key].gender = nameAddGender;
-    }
-    saveNamesState(state);
-    input.value = '';
-    renderNames();
-    showToast('Имя добавлено');
-  });
+  const form = document.getElementById('nameAddForm');
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = '1';
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('nameAddInput');
+      const name = (input?.value || '').trim();
+      if (!name) return;
+      const state = getNamesState();
+      const key = name.toLowerCase();
+      if (!state[key]) {
+        state[key] = { name, vote: null, gender: nameAddGender, updatedAt: new Date().toISOString() };
+      } else {
+        state[key].name = name;
+        state[key].gender = nameAddGender;
+        state[key].hidden = false;
+        state[key].updatedAt = new Date().toISOString();
+      }
+      saveNamesState(state);
+      input.value = '';
+      renderNames();
+      showToast('Имя добавлено');
+    });
+  }
 }
 
 function renderNames() {
@@ -126,7 +159,7 @@ function renderNames() {
 
   ensureNamesState();
   const state = getNamesState();
-  const list = Object.values(state);
+  const list = Object.values(state).filter(n => !n.hidden);
   const boys = sortNames(list.filter(n => n.gender === 'male'));
   const girls = sortNames(list.filter(n => n.gender !== 'male'));
 
@@ -159,10 +192,10 @@ function nameCard(n) {
   return `<div class="name-card${n.vote ? ' voted-' + n.vote : ''}">
     <span class="name-text">${escapeHtml(n.name)}</span>
     <div class="name-votes">
-      <button type="button" class="name-vote yes${n.vote === 'yes' ? ' active' : ''}" data-vote="yes" data-name-key="${escapeHtml(key)}" title="Нравится"><i class="fas fa-heart"></i></button>
-      <button type="button" class="name-vote maybe${n.vote === 'maybe' ? ' active' : ''}" data-vote="maybe" data-name-key="${escapeHtml(key)}" title="Может быть"><i class="fas fa-question"></i></button>
-      <button type="button" class="name-vote no${n.vote === 'no' ? ' active' : ''}" data-vote="no" data-name-key="${escapeHtml(key)}" title="Нет"><i class="fas fa-times"></i></button>
-      <button type="button" class="name-del" data-del-name="${escapeHtml(key)}"><i class="fas fa-trash"></i></button>
+      <button type="button" class="name-vote yes${n.vote === 'yes' ? ' active' : ''}" data-vote="yes" data-name-key="${escapeAttr(key)}" title="Нравится" aria-label="Нравится"><i class="fas fa-heart"></i></button>
+      <button type="button" class="name-vote maybe${n.vote === 'maybe' ? ' active' : ''}" data-vote="maybe" data-name-key="${escapeAttr(key)}" title="Может быть" aria-label="Может быть"><i class="fas fa-question"></i></button>
+      <button type="button" class="name-vote no${n.vote === 'no' ? ' active' : ''}" data-vote="no" data-name-key="${escapeAttr(key)}" title="Нет" aria-label="Нет"><i class="fas fa-times"></i></button>
+      <button type="button" class="name-del" data-del-name="${escapeAttr(key)}" title="Удалить" aria-label="Удалить"><i class="fas fa-trash"></i></button>
     </div>
   </div>`;
 }

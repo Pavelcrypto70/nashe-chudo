@@ -22,6 +22,7 @@ function getGiftItems() {
 
 function saveGiftItems(items) {
   localStorage.setItem(GIFTS_KEY, JSON.stringify(items));
+  notifyDataChanged?.();
 }
 
 function generateGiftId() {

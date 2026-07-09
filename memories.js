@@ -17,7 +17,10 @@ function initMemories() {
 function getUltrasound() {
   try { return JSON.parse(localStorage.getItem(ULTRASOUND_KEY)) || []; } catch { return []; }
 }
-function saveUltrasound(items) { localStorage.setItem(ULTRASOUND_KEY, JSON.stringify(items)); }
+function saveUltrasound(items) {
+  localStorage.setItem(ULTRASOUND_KEY, JSON.stringify(items));
+  notifyDataChanged?.();
+}
 
 function getDiary() {
   try {
@@ -38,9 +41,12 @@ function getStoryPhotos() {
   } catch { /* */ }
   return typeof STORY_PHOTOS !== 'undefined' ? STORY_PHOTOS : [];
 }
-function saveStoryPhotos(p) { localStorage.setItem(STORY_PHOTOS_KEY, JSON.stringify(p)); }
+function saveStoryPhotos(p) {
+  localStorage.setItem(STORY_PHOTOS_KEY, JSON.stringify(p));
+  notifyDataChanged?.();
+}
 
-function readImageFile(file, maxSize = 900) {
+function readImageFile(file, maxSize = 480) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) {
       reject(new Error('not an image'));
@@ -64,7 +70,7 @@ function readImageFile(file, maxSize = 900) {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.72));
+        resolve(canvas.toDataURL('image/jpeg', 0.55));
       };
       img.onerror = reject;
       img.src = reader.result;

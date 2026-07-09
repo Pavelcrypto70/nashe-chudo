@@ -154,6 +154,15 @@ body {
   transition: 0.2s;
 }
 
+.nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 98;
+  background: rgba(44, 40, 37, 0.35);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
 /* ─── Hero ─── */
 .hero {
   position: relative;
@@ -2640,7 +2649,7 @@ body {
 }
 
 /* ─── Responsive — iPhone и мобильные ─── */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   :root {
     --header-h: 60px;
     --section-gap: 48px;
@@ -2703,7 +2712,9 @@ body {
 
   .nav-link:active { background: var(--rose-light); }
 
-  .nav-toggle { display: flex; }
+  .nav-toggle { display: flex; z-index: 101; position: relative; }
+
+  .search-toggle { display: flex; }
 
   .nav-toggle.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
   .nav-toggle.open span:nth-child(2) { opacity: 0; }
@@ -3451,6 +3462,9 @@ body {
   background: var(--cream);
   cursor: pointer;
   color: var(--charcoal-soft);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .name-vote.yes.active { background: #fde8e8; color: #c44; border-color: #e8b4b4; }
@@ -3652,8 +3666,6 @@ body {
 .search-hint { padding: 20px; text-align: center; color: var(--charcoal-soft); font-size: var(--text-sm); }
 
 @media (max-width: 768px) {
-  .search-toggle { display: flex; }
-
   .header-inner { gap: 8px; }
 
   .mem-form-row { grid-template-columns: 1fr; }
@@ -3672,13 +3684,13 @@ body {
   .settings-grid { grid-template-columns: 1fr; }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .search-toggle { display: flex; }
+  .nav-backdrop { display: none !important; }
 }
 
-@media (min-width: 769px) and (max-width: 1280px) {
-  .nav { flex-wrap: wrap; justify-content: flex-end; gap: 4px; max-width: calc(100% - 200px); }
-  .nav-link { padding: 5px 10px; font-size: 0.8rem; }
+@media (min-width: 769px) and (max-width: 1024px) {
+  .header-inner { gap: 8px; }
 }
 
 /* ─── Календарь ─── */

@@ -317,22 +317,34 @@ function renderMonthPanel(month) {
 /* renderBenefits перенесён в checklists.js */
 
 /* ─── Навигация ─── */
+function setNavOpen(isOpen) {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  const backdrop = document.getElementById('navBackdrop');
+  if (!nav || !toggle) return;
+
+  nav.classList.toggle('open', isOpen);
+  toggle.classList.toggle('open', isOpen);
+  document.body.classList.toggle('nav-open', isOpen);
+  toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  if (backdrop) backdrop.hidden = !isOpen;
+}
+
 function setupNav() {
   const toggle = document.getElementById('navToggle');
   const nav = document.getElementById('mainNav');
+  const backdrop = document.getElementById('navBackdrop');
 
   if (toggle && nav) {
     toggle.addEventListener('click', () => {
-      const isOpen = nav.classList.toggle('open');
-      toggle.classList.toggle('open');
-      document.body.classList.toggle('nav-open', isOpen);
+      setNavOpen(!nav.classList.contains('open'));
     });
+    backdrop?.addEventListener('click', () => setNavOpen(false));
     nav.querySelectorAll('.nav-link').forEach(link => {
-      link.addEventListener('click', () => {
-        nav.classList.remove('open');
-        toggle.classList.remove('open');
-        document.body.classList.remove('nav-open');
-      });
+      link.addEventListener('click', () => setNavOpen(false));
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && nav.classList.contains('open')) setNavOpen(false);
     });
   }
 

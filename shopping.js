@@ -15,6 +15,7 @@ function getShopItems() {
 
 function saveShopItems(items) {
   localStorage.setItem(SHOP_ITEMS_KEY, JSON.stringify(items));
+  notifyDataChanged?.();
 }
 
 function generateShopItemId() {

@@ -26,6 +26,8 @@ const SYNC_BLOB_PATHS = {
   nashe_chudo_ultrasound: 'family/album/ultrasound',
   nashe_chudo_story_photos: 'family/album/story'
 };
+const ALBUM_ITEM_BLOB_PREFIX = 'family/album/item/';
+const BLOB_MAX_CHARS = 120000;
 
 function syncApiUrl() {
   const c = getSyncConfig();
@@ -173,6 +175,76 @@ function pickBetterValue(a, b) {
   return a.length >= b.length ? a : b;
 }
 
+function parseJsonSafe(str, fallback) {
+  try { return JSON.parse(str || ''); } catch { return fallback; }
+}
+
+function mergeJsonObjects(remoteStr, localStr) {
+  const remote = parseJsonSafe(remoteStr, {});
+  const local = parseJsonSafe(localStr, {});
+  if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return pickBetterValue(remoteStr, localStr);
+  if (!local || typeof local !== 'object' || Array.isArray(local)) return pickBetterValue(remoteStr, localStr);
+
+  const merged = { ...remote };
+  Object.entries(local).forEach(([key, localVal]) => {
+    const remoteVal = remote[key];
+    if (remoteVal == null) {
+      merged[key] = localVal;
+      return;
+    }
+    if (localVal == null) return;
+
+    if (typeof localVal === 'object' && typeof remoteVal === 'object' && !Array.isArray(localVal) && !Array.isArray(remoteVal)) {
+      merged[key] = { ...remoteVal, ...localVal };
+      return;
+    }
+
+    const localScore = JSON.stringify(localVal).length;
+    const remoteScore = JSON.stringify(remoteVal).length;
+    merged[key] = localScore >= remoteScore ? localVal : remoteVal;
+  });
+  return JSON.stringify(merged);
+}
+
+function mergeNamesState(remoteStr, localStr) {
+  const remote = parseJsonSafe(remoteStr, {});
+  const local = parseJsonSafe(localStr, {});
+  const merged = { ...remote };
+
+  Object.entries(local).forEach(([key, localEntry]) => {
+    const remoteEntry = remote[key];
+    if (!remoteEntry) {
+      merged[key] = localEntry;
+      return;
+    }
+    if (localEntry?.hidden) {
+      merged[key] = localEntry;
+      return;
+    }
+    if (remoteEntry?.hidden) {
+      merged[key] = remoteEntry;
+      return;
+    }
+
+    const voteRank = v => (v === 'yes' ? 3 : v === 'maybe' ? 2 : v === 'no' ? 1 : 0);
+    const localVote = localEntry?.vote;
+    const remoteVote = remoteEntry?.vote;
+    const vote = voteRank(localVote) >= voteRank(remoteVote) ? localVote : remoteVote;
+    const updatedAt = [localEntry?.updatedAt, remoteEntry?.updatedAt].filter(Boolean).sort().pop();
+
+    merged[key] = {
+      ...remoteEntry,
+      ...localEntry,
+      name: localEntry?.name || remoteEntry?.name,
+      gender: localEntry?.gender || remoteEntry?.gender,
+      vote,
+      updatedAt
+    };
+  });
+
+  return JSON.stringify(merged);
+}
+
 function mergeJsonArraysById(remoteStr, localStr) {
   try {
     const r = JSON.parse(remoteStr || '[]');
@@ -205,12 +277,33 @@ const MERGE_ARRAY_KEYS = [
   'nashe_chudo_story_photos'
 ];
 
+const MERGE_OBJECT_KEYS = [
+  'nashe_chudo_settings',
+  'nashe_chudo_checklists',
+  'nashe_chudo_milestones',
+  'nashe_chudo_calendar_done',
+  'nashe_chudo_choices',
+  'nashe_chudo_shop_links',
+  'nashe_chudo_shop_custom',
+  'nashe_chudo_growth',
+  'nashe_chudo_savings',
+  'nashe_chudo_child_wishes',
+  'nashe_chudo_baby_log',
+  'nashe_chudo_vaccines_done',
+  'nashe_chudo_product_previews',
+  'nashe_chudo_calendar_custom'
+];
+
 function mergePayloads(remote, local) {
   const keys = {};
   BACKUP_KEYS.forEach(key => {
     let merged;
-    if (MERGE_ARRAY_KEYS.includes(key)) {
+    if (key === 'nashe_chudo_names') {
+      merged = mergeNamesState(remote?.keys?.[key], local?.keys?.[key]);
+    } else if (MERGE_ARRAY_KEYS.includes(key)) {
       merged = mergeJsonArraysById(remote?.keys?.[key], local?.keys?.[key]);
+    } else if (MERGE_OBJECT_KEYS.includes(key)) {
+      merged = mergeJsonObjects(remote?.keys?.[key], local?.keys?.[key]);
     } else {
       merged = pickBetterValue(remote?.keys?.[key], local?.keys?.[key]);
     }
@@ -268,9 +361,48 @@ function applySyncPayload(data, force = false) {
 }
 
 function scheduleSyncPush() {
-  if (!syncReady || applyingRemote) return;
+  if (applyingRemote) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => pushSyncToCloud(false), SYNC_DEBOUNCE_MS);
+}
+
+function albumItemBlobPath(itemId) {
+  return `${ALBUM_ITEM_BLOB_PREFIX}${itemId}`;
+}
+
+function stripAlbumDataUrls(items) {
+  return (items || []).map(item => {
+    if (!item?.url || !String(item.url).startsWith('data:')) return item;
+    return { ...item, url: '', cloudRef: item.id || item.cloudRef || '' };
+  });
+}
+
+async function hydrateAlbumItems(items) {
+  const hydrated = [];
+  for (const item of items || []) {
+    if (!item) continue;
+    if (item.url && !item.cloudRef) {
+      hydrated.push(item);
+      continue;
+    }
+    const ref = item.cloudRef || item.id;
+    if (!ref) {
+      hydrated.push(item);
+      continue;
+    }
+    try {
+      const res = await syncRequestUrl(syncBlobUrl(albumItemBlobPath(ref)), 'GET', null, { silent: true, allowProxy: true });
+      if (!res.ok) {
+        hydrated.push(item);
+        continue;
+      }
+      const data = await res.json();
+      hydrated.push({ ...item, url: data?.value || item.url || '', cloudRef: ref });
+    } catch {
+      hydrated.push(item);
+    }
+  }
+  return hydrated;
 }
 
 async function pullAlbumBlobs() {
@@ -280,39 +412,74 @@ async function pullAlbumBlobs() {
       const res = await syncRequestUrl(syncBlobUrl(path), 'GET', null, { silent: true, allowProxy: true });
       if (!res.ok) continue;
       const data = await res.json();
-      if (data?.value) out[key] = data.value;
+      if (!data?.value) continue;
+      const items = parseJsonSafe(data.value, null);
+      if (Array.isArray(items)) {
+        const hydrated = await hydrateAlbumItems(items);
+        out[key] = JSON.stringify(hydrated);
+      } else {
+        out[key] = data.value;
+      }
     } catch { /* try next blob */ }
   }
   return out;
+}
+
+async function pushAlbumItemBlob(item, opts = {}) {
+  if (!item?.id || !item?.url || !String(item.url).startsWith('data:')) return;
+  const body = {
+    updatedAt: Date.now(),
+    deviceId: getDeviceId(),
+    device: getDeviceLabel(),
+    value: item.url
+  };
+  await syncRequestUrl(syncBlobUrl(albumItemBlobPath(item.id)), 'POST', body, { silent: true, allowProxy: true, ...opts });
 }
 
 async function pushAlbumBlobs(keys, opts = {}) {
   for (const [key, path] of Object.entries(SYNC_BLOB_PATHS)) {
     const val = keys?.[key];
     if (!val || val.length < 3) continue;
-    if (val.length > 62000) {
-      console.warn('Album too large for cloud — сожмите фото:', key);
+
+    const items = parseJsonSafe(val, null);
+    if (!Array.isArray(items)) {
+      if (val.length > BLOB_MAX_CHARS) continue;
+      const body = {
+        updatedAt: Date.now(),
+        deviceId: getDeviceId(),
+        device: getDeviceLabel(),
+        value: val
+      };
+      await syncRequestUrl(syncBlobUrl(path), 'POST', body, { silent: true, allowProxy: true, ...opts });
       continue;
     }
+
+    for (const item of items) {
+      try { await pushAlbumItemBlob(item, opts); } catch { /* skip item */ }
+    }
+
+    const lean = JSON.stringify(stripAlbumDataUrls(items));
     const body = {
       updatedAt: Date.now(),
       deviceId: getDeviceId(),
       device: getDeviceLabel(),
-      value: val
+      value: lean
     };
     await syncRequestUrl(syncBlobUrl(path), 'POST', body, { silent: true, allowProxy: true, ...opts });
   }
 }
 
 async function pullRemoteForMerge() {
-  let main = null;
-  try {
-    const res = await syncRequest('GET', null, { silent: true, allowProxy: true });
-    if (res.ok) main = await res.json();
-  } catch { /* fallback */ }
+  let main = await pullFromLocalMirror();
 
-  if (!main?.keys) main = await pullFromLocalMirror();
-  if (!main) main = { keys: {}, updatedAt: 0 };
+  if (!main?.keys) {
+    try {
+      const res = await syncRequest('GET', null, { silent: true, allowProxy: true });
+      if (res.ok) main = await res.json();
+    } catch { /* fallback */ }
+  }
+
+  if (!main?.keys) main = { keys: {}, updatedAt: 0 };
 
   const blobs = await pullAlbumBlobs();
   main.keys = { ...main.keys, ...blobs };
@@ -335,7 +502,7 @@ async function pushSyncToCloud(allowOverwrite = false) {
   if (!isSyncConfigured() || applyingRemote) return;
 
   const local = collectSyncPayload();
-  if (payloadScore(local) < 10) return;
+  if (payloadScore(local) < 1) return;
 
   try {
     if (!allowOverwrite) {
@@ -409,7 +576,7 @@ async function runAutoSync({ refresh = false } = {}) {
     } catch {
       syncStatus = changed ? 'live' : 'error';
     }
-  } else if (payloadScore(local) > 10) {
+  } else if (payloadScore(local) > 0) {
     try {
       await pushPayloadToCloud(local, { silent: true });
       lastRemoteAt = local.updatedAt;
@@ -438,7 +605,7 @@ function startSyncPolling() {
     if (!remote?.keys) return;
 
     const isOwnEcho = remote.deviceId === getDeviceId()
-      && Math.abs(remote.updatedAt - lastPushAt) < 5000;
+      && Math.abs(remote.updatedAt - lastPushAt) < 1500;
     if (isOwnEcho) return;
 
     const local = collectSyncPayload();
@@ -509,6 +676,11 @@ async function forcePushNow() {
   await forceSyncNow();
 }
 
+function notifyDataChanged() {
+  scheduleSyncPush();
+}
+
 window.updateSyncStatus = updateSyncStatusUI;
 window.forceSyncNow = forceSyncNow;
 window.forcePushNow = forcePushNow;
+window.notifyDataChanged = notifyDataChanged;
