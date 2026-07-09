@@ -7,6 +7,7 @@ const BACKUP_KEYS = [
   'nashe_chudo_shop_links',
   'nashe_chudo_wishlist',
   'nashe_chudo_shop_items',
+  'nashe_chudo_gifts_wishlist',
   'nashe_chudo_shop_migrated_v2',
   'nashe_chudo_checklists',
   'nashe_chudo_growth',
@@ -80,6 +81,7 @@ function buildSearchIndex() {
   add('История', 'любовь история', '#story');
   add('Месяцы беременности', 'путеводитель анализы', '#journey');
   add('К родам', 'покупки коляска кроватка wildberries ozon хотелки', '#shopping');
+  add('Вишлист подарков', 'подарки родным wildberries ozon', '#gifts');
   add('Чек-листы', 'готовность роддом', '#checklists');
   add('Первый год', 'прививки педиатр', '#first-year');
   add('Рост и вес', 'график педиатр', '#growth');

@@ -44,14 +44,9 @@ function deleteShopItem(id) {
 
 function toggleShopItemSelected(id) {
   const items = getShopItems();
-  const item = items.find(i => i.id === id);
-  if (!item) return;
-  const next = !item.selected;
-  items.forEach(i => {
-    if (i.categoryId === item.categoryId) i.selected = false;
-  });
   const idx = items.findIndex(i => i.id === id);
-  items[idx].selected = next;
+  if (idx < 0) return;
+  items[idx].selected = !items[idx].selected;
   saveShopItems(items);
 }
 

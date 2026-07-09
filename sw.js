@@ -1,4 +1,4 @@
-const CACHE_VERSION = '20260709-5';
+const CACHE_VERSION = '20260709-6';
 const CACHE = 'nashe-chudo-' + CACHE_VERSION;
 
 self.addEventListener('install', e => {

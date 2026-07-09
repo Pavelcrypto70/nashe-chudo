@@ -3189,6 +3189,14 @@ body {
   min-height: 48px;
 }
 
+.mem-field-file input[type="file"] {
+  font-size: var(--text-sm);
+  padding: 10px 0;
+  min-height: auto;
+  border: none;
+  background: transparent;
+}
+
 .mem-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

@@ -18,12 +18,12 @@
   <meta property="og:locale" content="ru_RU" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
-  <link rel="manifest" href="manifest.json?v=20260709-5" />
+  <link rel="manifest" href="manifest.json?v=20260709-6" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=20260709-5">
+  <link rel="stylesheet" href="style.css?v=20260709-6">
 </head>
 <body>
 
@@ -37,6 +37,7 @@
       <a href="#memories" class="nav-link">Альбом</a>
       <a href="#journey" class="nav-link">Месяцы</a>
       <a href="#shopping" class="nav-link">К родам</a>
+      <a href="#gifts" class="nav-link">Подарки</a>
       <a href="#names" class="nav-link">Имена</a>
       <a href="#tools" class="nav-link">Помощники</a>
       <a href="#checklists" class="nav-link">Чек-листы</a>
@@ -174,8 +175,27 @@
       <div class="shopping-summary" id="shoppingSummary">
         <h3>Ваш выбор</h3>
         <ul id="selectedList"></ul>
-        <p class="summary-empty" id="summaryEmpty">Пока ничего не выбрано — нажмите на вариант в любой категории.</p>
+        <p class="summary-empty" id="summaryEmpty">Пока ничего не выбрано — отмечайте несколько вариантов в любой категории.</p>
         <button type="button" class="btn-wish btn-wish-outline summary-export" id="exportShoppingBtn" style="display:none"><i class="fas fa-share-nodes"></i> Скопировать список</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gifts wishlist for relatives -->
+  <section class="section" id="gifts">
+    <div class="container">
+      <div class="section-head">
+        <span class="section-tag">Подарки</span>
+        <h2 class="section-title">Вишлист для родных</h2>
+        <p class="section-desc">Идеи подарков к родам и малышу — с ссылками на WB/Ozon. Можно скопировать список и отправить бабушкам и друзьям.</p>
+      </div>
+      <div class="shopping-filters" id="giftsFilters"></div>
+      <div class="shopping-grid" id="giftsGrid"></div>
+      <div class="shopping-summary" id="giftsSummary">
+        <h3>Список подарков</h3>
+        <ul id="giftsList"></ul>
+        <p class="summary-empty" id="giftsEmpty">Пока пусто — добавьте первую идею подарка.</p>
+        <button type="button" class="btn-wish btn-wish-outline summary-export" id="exportGiftsBtn"><i class="fas fa-share-nodes"></i> Скопировать список</button>
       </div>
     </div>
   </section>
@@ -403,7 +423,7 @@
 
 <script>
 (function () {
-  var local = '20260709-5';
+  var local = '20260709-6';
   function check() {
     fetch('version.js?t=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.text() : ''; })
@@ -419,23 +439,24 @@
   setInterval(check, 60000);
 })();
 </script>
-<script src="version.js?v=20260709-5"></script>
-<script src="data.js?v=20260709-5"></script>
-<script src="settings.js?v=20260709-5"></script>
-<script src="checklists.js?v=20260709-5"></script>
-<script src="economy.js?v=20260709-5"></script>
-<script src="first-year.js?v=20260709-5"></script>
-<script src="region.js?v=20260709-5"></script>
-<script src="growth.js?v=20260709-5"></script>
-<script src="product-preview.js?v=20260709-5"></script>
-<script src="shopping.js?v=20260709-5"></script>
-<script src="calendar.js?v=20260709-5"></script>
-<script src="baby-life.js?v=20260709-5"></script>
-<script src="memories.js?v=20260709-5"></script>
-<script src="tools.js?v=20260709-5"></script>
-<script src="names.js?v=20260709-5"></script>
-<script src="backup.js?v=20260709-5"></script>
-<script src="sync.js?v=20260709-5"></script>
-<script src="script.js?v=20260709-5"></script>
+<script src="version.js?v=20260709-6"></script>
+<script src="data.js?v=20260709-6"></script>
+<script src="settings.js?v=20260709-6"></script>
+<script src="checklists.js?v=20260709-6"></script>
+<script src="economy.js?v=20260709-6"></script>
+<script src="first-year.js?v=20260709-6"></script>
+<script src="region.js?v=20260709-6"></script>
+<script src="growth.js?v=20260709-6"></script>
+<script src="product-preview.js?v=20260709-6"></script>
+<script src="shopping.js?v=20260709-6"></script>
+<script src="gifts-wishlist.js?v=20260709-6"></script>
+<script src="calendar.js?v=20260709-6"></script>
+<script src="baby-life.js?v=20260709-6"></script>
+<script src="memories.js?v=20260709-6"></script>
+<script src="tools.js?v=20260709-6"></script>
+<script src="names.js?v=20260709-6"></script>
+<script src="backup.js?v=20260709-6"></script>
+<script src="sync.js?v=20260709-6"></script>
+<script src="script.js?v=20260709-6"></script>
 </body>
 </html>

@@ -30,6 +30,7 @@ function init() {
   renderMonthPanel(activeMonth);
   initMemories();
   initShopping();
+  initGiftsWishlist();
   initChecklists();
   initFirstYear();
   initRegion();
@@ -60,6 +61,7 @@ function refreshAllData() {
   if (typeof renderMemoriesPanel === 'function') renderMemoriesPanel();
 
   if (typeof renderShopping === 'function') renderShopping();
+  if (typeof renderGiftsWishlist === 'function') renderGiftsWishlist();
 
   if (typeof renderChecklistsSection === 'function') renderChecklistsSection();
   if (typeof renderBenefitChecklists === 'function') renderBenefitChecklists();

@@ -40,6 +40,40 @@ function getStoryPhotos() {
 }
 function saveStoryPhotos(p) { localStorage.setItem(STORY_PHOTOS_KEY, JSON.stringify(p)); }
 
+function readImageFile(file, maxSize = 1200) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) {
+      reject(new Error('not an image'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round(height * maxSize / width);
+            width = maxSize;
+          } else {
+            width = Math.round(width * maxSize / height);
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function renderStoryGallery() {
   const grid = document.getElementById('storyGallery');
   if (!grid) return;
@@ -96,7 +130,11 @@ function renderMemoriesPanel() {
           <label class="mem-field"><span>Неделя / срок</span><input type="text" name="week" placeholder="12 недель" maxlength="40" required></label>
           <label class="mem-field"><span>Дата</span><input type="date" name="date" required></label>
         </div>
-        <label class="mem-field"><span>Ссылка на фото УЗИ</span><input type="url" name="url" placeholder="Ссылка на фото или облако" required></label>
+        <label class="mem-field"><span>Ссылка на фото УЗИ</span><input type="url" name="url" placeholder="Ссылка на фото или облако"></label>
+        <label class="mem-field mem-field-file">
+          <span>Или загрузите с телефона / компьютера</span>
+          <input type="file" name="file" accept="image/*" capture="environment">
+        </label>
         <label class="mem-field"><span>Подпись</span><input type="text" name="caption" placeholder="Первое сердцебиение..." maxlength="120"></label>
         <button type="submit" class="btn-wish btn-wish-primary"><i class="fas fa-plus"></i> Добавить снимок</button>
       </form>
@@ -173,7 +211,11 @@ function renderMemoriesPanel() {
     const photos = getStoryPhotos();
     panel.innerHTML = `
       <form class="mem-form" id="storyPhotoForm">
-        <label class="mem-field"><span>Ссылка на фото</span><input type="url" name="url" placeholder="Google Photos, iCloud, Telegram..." required></label>
+        <label class="mem-field"><span>Ссылка на фото</span><input type="url" name="url" placeholder="Google Photos, iCloud, Telegram..."></label>
+        <label class="mem-field mem-field-file">
+          <span>Или загрузите с устройства</span>
+          <input type="file" name="file" accept="image/*" capture="environment">
+        </label>
         <label class="mem-field"><span>Подпись</span><input type="text" name="caption" placeholder="Наше фото..." maxlength="80"></label>
         <button type="submit" class="btn-wish btn-wish-primary"><i class="fas fa-plus"></i> Добавить в историю</button>
       </form>
@@ -219,13 +261,36 @@ function diaryCard(d, i) {
 
 function onUltrasoundSubmit(e) {
   e.preventDefault();
-  const fd = new FormData(e.target);
-  const items = getUltrasound();
-  items.push({ week: fd.get('week'), date: fd.get('date'), url: fd.get('url'), caption: fd.get('caption') });
-  saveUltrasound(items.sort((a, b) => new Date(a.date) - new Date(b.date)));
-  e.target.reset();
-  renderMemoriesPanel();
-  showToast('Снимок добавлен');
+  const form = e.target;
+  const fd = new FormData(form);
+  const file = fd.get('file');
+  const urlInput = (fd.get('url') || '').trim();
+  const btn = form.querySelector('[type="submit"]');
+
+  const save = url => {
+    const items = getUltrasound();
+    items.push({ week: fd.get('week'), date: fd.get('date'), url, caption: fd.get('caption') });
+    saveUltrasound(items.sort((a, b) => new Date(a.date) - new Date(b.date)));
+    form.reset();
+    renderMemoriesPanel();
+    showToast('Снимок добавлен');
+  };
+
+  if (file && file.size > 0) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загружаем…'; }
+    readImageFile(file)
+      .then(save)
+      .catch(() => showToast('Не удалось загрузить фото'))
+      .finally(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Добавить снимок'; }
+      });
+    return;
+  }
+  if (!urlInput) {
+    showToast('Добавьте ссылку или выберите файл');
+    return;
+  }
+  save(urlInput);
 }
 
 function onDiarySubmit(e) {
@@ -243,14 +308,37 @@ function onDiarySubmit(e) {
 
 function onStoryPhotoSubmit(e) {
   e.preventDefault();
-  const fd = new FormData(e.target);
-  const photos = getStoryPhotos();
-  photos.push({ url: fd.get('url'), caption: fd.get('caption') });
-  saveStoryPhotos(photos);
-  e.target.reset();
-  renderStoryGallery();
-  renderMemoriesPanel();
-  showToast('Фото добавлено');
+  const form = e.target;
+  const fd = new FormData(form);
+  const file = fd.get('file');
+  const urlInput = (fd.get('url') || '').trim();
+  const btn = form.querySelector('[type="submit"]');
+
+  const save = url => {
+    const photos = getStoryPhotos();
+    photos.push({ url, caption: fd.get('caption') });
+    saveStoryPhotos(photos);
+    form.reset();
+    renderStoryGallery();
+    renderMemoriesPanel();
+    showToast('Фото добавлено');
+  };
+
+  if (file && file.size > 0) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загружаем…'; }
+    readImageFile(file)
+      .then(save)
+      .catch(() => showToast('Не удалось загрузить фото'))
+      .finally(() => {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Добавить в историю'; }
+      });
+    return;
+  }
+  if (!urlInput) {
+    showToast('Добавьте ссылку или выберите файл');
+    return;
+  }
+  save(urlInput);
 }
 
 function bindMemoriesForms() { /* bound in renderMemoriesPanel */ }
