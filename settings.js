@@ -127,13 +127,9 @@ function renderSettingsPanel() {
       </div>
       <div class="settings-card settings-card-sync">
         <h3><i class="fas fa-cloud"></i> Общая база</h3>
-        <p class="settings-sync-hint">Сначала «Загрузить» (данные Иры), потом добавляйте своё и «Отправить в облако» — Ира увидит на ноутбуке.</p>
+        <p class="settings-sync-hint">Галочки, товары и заметки сами синхронизируются между телефоном, ПК и ноутбуком Иры — ничего нажимать не нужно.</p>
         <div class="sync-status sync-status--off" id="syncStatus"><i class="fas fa-cloud-slash"></i><span>Проверяем...</span></div>
-        <div class="settings-sync-actions">
-          <button type="button" class="btn-wish btn-wish-primary btn-sm" id="forceSyncBtn"><i class="fas fa-cloud-download-alt"></i> Загрузить из облака</button>
-          <button type="button" class="btn-wish btn-wish-outline btn-sm" id="forcePushBtn"><i class="fas fa-cloud-upload-alt"></i> Отправить в облако</button>
-          <button type="button" class="btn-wish btn-wish-ghost btn-sm" id="resetCacheBtn"><i class="fas fa-broom"></i> Сбросить кэш</button>
-        </div>
+        <button type="button" class="btn-wish btn-wish-ghost btn-sm" id="resetCacheBtn"><i class="fas fa-broom"></i> Сбросить кэш</button>
       </div>
       <div class="settings-card settings-card-pwa">
         <h3><i class="fas fa-mobile-screen"></i> На экран iPhone</h3>
@@ -187,8 +183,6 @@ function renderSettingsPanel() {
 
   bindPwaButton();
   updateSyncStatus?.();
-  document.getElementById('forceSyncBtn')?.addEventListener('click', () => forceSyncNow?.());
-  document.getElementById('forcePushBtn')?.addEventListener('click', () => forcePushNow?.());
   document.getElementById('resetCacheBtn')?.addEventListener('click', () => resetAppCache?.());
 }
 
