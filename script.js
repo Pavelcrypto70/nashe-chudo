@@ -4,7 +4,7 @@
 const CONFIG = {
   husbandName: 'Павел',
   wifeName: 'Ира',
-  conceptionDate: '2026-03-03',
+  lmpDate: '2026-03-04', // первый день последней менструации (ПМ)
   dueDate: null
 };
 
@@ -38,12 +38,9 @@ function init() {
   setupNavScrollSpy();
 }
 
-/* ─── Расчёт срока (акушерские недели) ─── */
+/* ─── Расчёт срока (акушерские недели от ПМ) ─── */
 function getLMP() {
-  const c = parseDate(CONFIG.conceptionDate);
-  const lmp = new Date(c);
-  lmp.setDate(lmp.getDate() - 14);
-  return lmp;
+  return parseDate(CONFIG.lmpDate);
 }
 
 function getPregnancyState() {
