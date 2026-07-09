@@ -235,9 +235,41 @@ function bindPwaButton() {
 }
 
 function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
+  if (!('serviceWorker' in navigator) || typeof APP_VERSION === 'undefined') return;
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register(`sw.js?v=${APP_VERSION}`)
+    .then(reg => {
+      reg.update();
+      setInterval(() => reg.update(), 30 * 60 * 1000);
+
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    })
+    .catch(() => {});
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      navigator.serviceWorker?.ready.then(r => r.update()).catch(() => {});
+    }
+  });
 }
 
 function renderGiftCard() {

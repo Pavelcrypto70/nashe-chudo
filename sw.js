@@ -1,8 +1,8 @@
-const CACHE = 'nashe-chudo-v2';
-const PRECACHE = ['./', './index.html', './style.css', './icon.svg', './manifest.json'];
+const CACHE_VERSION = '20260709-4';
+const CACHE = 'nashe-chudo-' + CACHE_VERSION;
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  e.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', e => {
@@ -13,31 +13,28 @@ self.addEventListener('activate', e => {
   );
 });
 
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  const isAppFile = /\.(js|html)$/.test(url.pathname) || url.pathname.endsWith('/');
+  if (url.origin !== self.location.origin) return;
 
-  if (isAppFile) {
+  const isAsset = /\.(js|css|html|json|svg)$/.test(url.pathname) || url.pathname.endsWith('/');
+
+  if (isAsset) {
     e.respondWith(
       fetch(e.request)
         .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, copy));
+          }
           return res;
         })
         .catch(() => caches.match(e.request))
     );
-    return;
   }
-
-  e.respondWith(
-    caches.match(e.request).then(cached =>
-      cached || fetch(e.request).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
-        return res;
-      })
-    )
-  );
 });
