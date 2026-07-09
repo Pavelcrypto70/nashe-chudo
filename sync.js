@@ -28,17 +28,50 @@ function syncApiUrl() {
   return `https://mantledb.sh/v2/${c.namespace}/${path}`;
 }
 
-function syncHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'X-Mantle-Key': getSyncConfig().key
-  };
+function syncAuthHeaders() {
+  return { 'X-Mantle-Key': getSyncConfig().key };
 }
 
-function fetchWithTimeout(url, options = {}, ms = 12000) {
+function syncWriteHeaders() {
+  return { ...syncAuthHeaders(), 'Content-Type': 'application/json' };
+}
+
+const SYNC_PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+];
+
+function fetchWithTimeout(url, options = {}, ms = 20000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
+async function syncRequest(method, body, { silent = false } = {}) {
+  const url = syncApiUrl();
+  const headers = method === 'GET' ? syncAuthHeaders() : syncWriteHeaders();
+  const init = { method, headers };
+  if (body != null) init.body = JSON.stringify(body);
+
+  const attempts = [
+    () => fetchWithTimeout(url, init),
+    ...SYNC_PROXIES.map(proxy => () => fetchWithTimeout(proxy(url), init))
+  ];
+
+  let lastErr = null;
+  for (const attempt of attempts) {
+    try {
+      const res = await attempt();
+      if (res.status === 404) return res;
+      if (res.ok) return res;
+      lastErr = new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  if (!silent) console.warn('Sync request failed:', lastErr);
+  throw lastErr || new Error('sync failed');
 }
 
 function getDeviceId() {
@@ -126,13 +159,9 @@ function scheduleSyncPush() {
   pushTimer = setTimeout(() => pushSyncToCloud(false), SYNC_DEBOUNCE_MS);
 }
 
-async function pushPayloadToCloud(payload) {
+async function pushPayloadToCloud(payload, { silent = false } = {}) {
   lastPushAt = payload.updatedAt;
-  const res = await fetchWithTimeout(syncApiUrl(), {
-    method: 'POST',
-    headers: syncHeaders(),
-    body: JSON.stringify(payload)
-  });
+  const res = await syncRequest('POST', payload, { silent });
   if (!res.ok) throw new Error('push failed');
   syncStatus = 'live';
   updateSyncStatusUI();
@@ -174,16 +203,18 @@ async function pushSyncToCloud(allowOverwrite = false) {
   }
 }
 
-async function pullSyncFromCloud() {
+async function pullSyncFromCloud({ silent = false } = {}) {
   if (!isSyncConfigured()) return null;
   try {
-    const res = await fetchWithTimeout(syncApiUrl(), { headers: syncHeaders() });
+    const res = await syncRequest('GET', null, { silent });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('pull failed');
     return res.json();
   } catch {
-    syncStatus = 'error';
-    updateSyncStatusUI();
+    if (!silent) {
+      syncStatus = 'error';
+      updateSyncStatusUI();
+    }
     return null;
   }
 }
@@ -207,7 +238,7 @@ function startSyncPolling() {
   pollTimer = setInterval(async () => {
     if (!syncReady) return;
 
-    const remote = await pullSyncFromCloud();
+    const remote = await pullSyncFromCloud({ silent: true });
     if (!remote?.keys) return;
 
     const local = collectSyncPayload();
@@ -284,7 +315,7 @@ function updateSyncStatusUI() {
     off: { icon: 'fa-cloud-slash', text: 'Синхронизация не настроена' },
     connecting: { icon: 'fa-spinner fa-spin', text: 'Загружаем общие данные...' },
     live: { icon: 'fa-cloud', text: 'Общая база работает — изменения синхронизируются' },
-    error: { icon: 'fa-triangle-exclamation', text: 'Не удалось связаться с облаком — нажмите «Загрузить из облака»' }
+    error: { icon: 'fa-triangle-exclamation', text: 'Облако недоступно (не интернет!) — нажмите «Загрузить из облака» или «Сбросить кэш»' }
   }[syncStatus] || { icon: 'fa-cloud', text: '' };
 
   el.className = 'sync-status sync-status--' + syncStatus;

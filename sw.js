@@ -1,4 +1,4 @@
-const CACHE_VERSION = '20260709-11';
+const CACHE_VERSION = '20260709-12';
 const CACHE = 'nashe-chudo-' + CACHE_VERSION;
 
 self.addEventListener('install', e => {
@@ -8,7 +8,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -22,14 +22,14 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (url.pathname.endsWith('version.js')) {
+  const isCode = /\.(js|html)$/.test(url.pathname) || url.pathname.endsWith('version.js') || url.pathname.endsWith('/');
+  if (isCode) {
     e.respondWith(fetch(e.request, { cache: 'no-store' }));
     return;
   }
 
-  const isAsset = /\.(js|css|html|json|svg)$/.test(url.pathname) || url.pathname.endsWith('/');
-
-  if (isAsset) {
+  const isStatic = /\.(css|json|svg|png|jpg|webp|woff2?)$/.test(url.pathname);
+  if (isStatic) {
     e.respondWith(
       fetch(e.request)
         .then(res => {

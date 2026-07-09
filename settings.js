@@ -130,6 +130,7 @@ function renderSettingsPanel() {
         <p class="settings-sync-hint">Данные Иры в облаке. На новом устройстве нажмите «Загрузить из облака» — ваши локальные данные не перезапишут её.</p>
         <div class="sync-status sync-status--off" id="syncStatus"><i class="fas fa-cloud-slash"></i><span>Проверяем...</span></div>
         <button type="button" class="btn-wish btn-wish-primary btn-sm" id="forceSyncBtn"><i class="fas fa-cloud-download-alt"></i> Загрузить из облака</button>
+        <button type="button" class="btn-wish btn-wish-ghost btn-sm" id="resetCacheBtn"><i class="fas fa-broom"></i> Сбросить кэш и обновить</button>
       </div>
       <div class="settings-card settings-card-pwa">
         <h3><i class="fas fa-mobile-screen"></i> На экран iPhone</h3>
@@ -184,6 +185,24 @@ function renderSettingsPanel() {
   bindPwaButton();
   updateSyncStatus?.();
   document.getElementById('forceSyncBtn')?.addEventListener('click', () => forceSyncNow?.());
+  document.getElementById('resetCacheBtn')?.addEventListener('click', () => resetAppCache?.());
+}
+
+async function resetAppCache() {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    showToast('Кэш сброшен — обновляем...');
+    setTimeout(() => location.reload(), 400);
+  } catch {
+    showToast('Не удалось сбросить кэш — обновите Ctrl+F5');
+  }
 }
 
 function bindSettingsForm() { /* rendered in renderSettingsPanel */ }
