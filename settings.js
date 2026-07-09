@@ -127,7 +127,7 @@ function renderSettingsPanel() {
       </div>
       <div class="settings-card settings-card-sync">
         <h3><i class="fas fa-cloud"></i> Общая база</h3>
-        <p class="settings-sync-hint">Галочки, хотелки и заметки синхронизируются между телефоном и ПК через облако Firebase.</p>
+        <p class="settings-sync-hint">Галочки, хотелки и заметки автоматически синхронизируются между телефоном и ПК.</p>
         <div class="sync-status sync-status--off" id="syncStatus"><i class="fas fa-cloud-slash"></i><span>Проверяем...</span></div>
         <button type="button" class="btn-wish btn-wish-outline btn-sm" id="forceSyncBtn"><i class="fas fa-rotate"></i> Синхронизировать сейчас</button>
       </div>

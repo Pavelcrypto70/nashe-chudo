@@ -7,14 +7,9 @@ const CONFIG = {
   lmpDate: '2026-03-04', // первый день последней менструации (ПМ)
   dueDate: null,
   sync: {
-    familyId: 'nashe_chudo_ira_pavel',
-    firebase: {
-      apiKey: 'YOUR_API_KEY',
-      authDomain: 'YOUR_PROJECT.firebaseapp.com',
-      databaseURL: 'https://YOUR_PROJECT-default-rtdb.firebaseio.com',
-      projectId: 'YOUR_PROJECT',
-      appId: 'YOUR_APP_ID'
-    }
+    namespace: 'nashe-chudo-ira-pavel-k7m2',
+    path: 'family/sync',
+    key: 'e2f80e6ed00f2ae08874f4b0dd521b5b3f81f8c9b3ccfe0024b2e10a727e6205'
   }
 };
 

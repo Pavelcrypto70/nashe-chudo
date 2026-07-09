@@ -1,27 +1,37 @@
-/* Облачная синхронизация — одна база для телефона, ПК и всех устройств */
+/* Облачная синхронизация — общая база для телефона, ПК и всех устройств (MantleDB) */
 
+const SYNC_POLL_MS = 4000;
 const SYNC_DEBOUNCE_MS = 1200;
-let syncRef = null;
+
 let lastRemoteAt = 0;
 let lastPushAt = 0;
 let applyingRemote = false;
 let syncReady = false;
 let syncStatus = 'off';
 let pushTimer = null;
+let pollTimer = null;
 let origSetItem = null;
 
-function isSyncConfigured() {
-  const fb = CONFIG?.sync?.firebase;
-  return Boolean(
-    fb?.apiKey &&
-    fb?.databaseURL &&
-    fb.apiKey !== 'YOUR_API_KEY' &&
-    !String(fb.databaseURL).includes('YOUR_PROJECT')
-  );
+function getSyncConfig() {
+  return CONFIG?.sync || {};
 }
 
-function getSyncPath() {
-  return 'families/' + (CONFIG.sync?.familyId || 'nashe_chudo_family');
+function isSyncConfigured() {
+  const c = getSyncConfig();
+  return Boolean(c.namespace && c.key && c.namespace !== 'YOUR_NAMESPACE');
+}
+
+function syncApiUrl() {
+  const c = getSyncConfig();
+  const path = c.path || 'family/sync';
+  return `https://mantledb.sh/v2/${c.namespace}/${path}`;
+}
+
+function syncHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'X-Mantle-Key': getSyncConfig().key
+  };
 }
 
 function collectSyncPayload() {
@@ -58,19 +68,37 @@ function scheduleSyncPush() {
   pushTimer = setTimeout(pushSyncToCloud, SYNC_DEBOUNCE_MS);
 }
 
-function pushSyncToCloud() {
-  if (!syncRef) return;
+async function pushSyncToCloud() {
+  if (!isSyncConfigured()) return;
   const payload = collectSyncPayload();
   lastPushAt = payload.updatedAt;
-  syncRef.set(payload)
-    .then(() => {
-      syncStatus = 'live';
-      updateSyncStatusUI();
-    })
-    .catch(() => {
-      syncStatus = 'error';
-      updateSyncStatusUI();
+  try {
+    const res = await fetch(syncApiUrl(), {
+      method: 'POST',
+      headers: syncHeaders(),
+      body: JSON.stringify(payload)
     });
+    if (!res.ok) throw new Error('push failed');
+    syncStatus = 'live';
+    updateSyncStatusUI();
+  } catch {
+    syncStatus = 'error';
+    updateSyncStatusUI();
+  }
+}
+
+async function pullSyncFromCloud() {
+  if (!isSyncConfigured()) return null;
+  try {
+    const res = await fetch(syncApiUrl(), { headers: syncHeaders() });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('pull failed');
+    return res.json();
+  } catch {
+    syncStatus = 'error';
+    updateSyncStatusUI();
+    return null;
+  }
 }
 
 function patchLocalStorageForSync() {
@@ -82,21 +110,38 @@ function patchLocalStorageForSync() {
 }
 
 function refreshAfterSync() {
-  if (typeof refreshAllData === 'function') {
-    refreshAllData();
-  } else {
-    location.reload();
-  }
+  if (typeof refreshAllData === 'function') refreshAllData();
+  else location.reload();
+}
+
+function startSyncPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (document.hidden || !syncReady) return;
+    const remote = await pullSyncFromCloud();
+    if (!remote?.keys) return;
+    if (Math.abs(remote.updatedAt - lastPushAt) < 500) return;
+    if (remote.updatedAt <= lastRemoteAt) return;
+    const changed = applySyncPayload(remote);
+    if (changed) {
+      refreshAfterSync();
+      showToast?.('Обновлено с другого устройства');
+    }
+  }, SYNC_POLL_MS);
+
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden && syncReady) {
+      const remote = await pullSyncFromCloud();
+      if (remote?.keys && remote.updatedAt > lastRemoteAt) {
+        if (applySyncPayload(remote)) refreshAfterSync();
+      }
+    }
+  });
 }
 
 async function initSync() {
   if (!isSyncConfigured()) {
     syncStatus = 'off';
-    updateSyncStatusUI();
-    return;
-  }
-  if (typeof firebase === 'undefined') {
-    syncStatus = 'error';
     updateSyncStatusUI();
     return;
   }
@@ -106,11 +151,7 @@ async function initSync() {
   updateSyncStatusUI();
 
   try {
-    if (!firebase.apps.length) firebase.initializeApp(CONFIG.sync.firebase);
-    syncRef = firebase.database().ref(getSyncPath());
-
-    const snapshot = await syncRef.once('value');
-    const remote = snapshot.val();
+    const remote = await pullSyncFromCloud();
 
     if (remote?.keys) {
       applySyncPayload(remote);
@@ -118,24 +159,12 @@ async function initSync() {
       const payload = collectSyncPayload();
       lastPushAt = payload.updatedAt;
       lastRemoteAt = payload.updatedAt;
-      await syncRef.set(payload);
+      await pushSyncToCloud();
     }
-
-    syncRef.on('value', snap => {
-      const data = snap.val();
-      if (!data?.keys || applyingRemote) return;
-      if (Math.abs(data.updatedAt - lastPushAt) < 500) return;
-      if (data.updatedAt <= lastRemoteAt) return;
-
-      const changed = applySyncPayload(data);
-      if (!changed) return;
-
-      refreshAfterSync();
-      if (typeof showToast === 'function') showToast('Обновлено с другого устройства');
-    });
 
     syncReady = true;
     syncStatus = 'live';
+    startSyncPolling();
   } catch (err) {
     console.error('Sync error:', err);
     syncStatus = 'error';
@@ -149,23 +178,27 @@ function updateSyncStatusUI() {
   if (!el) return;
 
   const meta = {
-    off: { icon: 'fa-cloud-slash', text: 'Синхронизация не настроена — данные только на этом устройстве' },
+    off: { icon: 'fa-cloud-slash', text: 'Синхронизация не настроена' },
     connecting: { icon: 'fa-spinner fa-spin', text: 'Подключаем общую базу...' },
     live: { icon: 'fa-cloud', text: 'Общая база работает — телефон и ПК синхронизируются' },
-    error: { icon: 'fa-triangle-exclamation', text: 'Не удалось подключиться к облаку — проверьте Firebase в CONFIG' }
+    error: { icon: 'fa-triangle-exclamation', text: 'Не удалось связаться с облаком — проверьте интернет' }
   }[syncStatus] || { icon: 'fa-cloud', text: '' };
 
   el.className = 'sync-status sync-status--' + syncStatus;
   el.innerHTML = `<i class="fas ${meta.icon}"></i><span>${meta.text}</span>`;
 }
 
-function forceSyncNow() {
+async function forceSyncNow() {
   if (!syncReady) {
     showToast?.('Синхронизация не подключена');
     return;
   }
-  pushSyncToCloud();
-  showToast?.('Отправлено в облако');
+  await pushSyncToCloud();
+  const remote = await pullSyncFromCloud();
+  if (remote?.keys && remote.updatedAt > lastRemoteAt) {
+    if (applySyncPayload(remote)) refreshAfterSync();
+  }
+  showToast?.('Синхронизировано');
 }
 
 window.updateSyncStatus = updateSyncStatusUI;
