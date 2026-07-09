@@ -99,13 +99,13 @@
     <div class="container">
       <div class="section-head">
         <span class="section-tag">Планирование</span>
-        <h2 class="section-title">Календарь важных дат</h2>
-        <p class="section-desc">УЗИ, анализы, декрет и ваши события — рассчитывается по сроку, можно добавить свои.</p>
+        <h2 class="section-title">Календарь важных дел</h2>
+        <p class="section-desc">УЗИ, анализы, декрет — отмечайте галочкой то, что уже прошли. У всех свои даты, ориентир по неделям.</p>
         <p class="calendar-summary" id="calendarSummary"></p>
       </div>
       <form class="cal-add-form" id="calendarForm">
-        <label class="mem-field"><span>Дата</span><input type="date" name="date" required></label>
         <label class="mem-field cal-field-grow"><span>Событие</span><input type="text" name="title" placeholder="УЗИ, анализы, визит..." maxlength="80" required></label>
+        <label class="mem-field"><span>Дата (необязательно)</span><input type="date" name="date"></label>
         <label class="mem-field cal-field-grow"><span>Заметка</span><input type="text" name="note" placeholder="необязательно" maxlength="120"></label>
         <button type="submit" class="btn-wish btn-wish-primary"><i class="fas fa-plus"></i></button>
       </form>

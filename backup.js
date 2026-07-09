@@ -16,6 +16,7 @@ const BACKUP_KEYS = [
   'nashe_chudo_story_photos',
   'nashe_chudo_names',
   'nashe_chudo_calendar_custom',
+  'nashe_chudo_calendar_done',
   'nashe_chudo_baby_log',
   'nashe_chudo_vaccines_done',
   'nashe_chudo_product_previews'

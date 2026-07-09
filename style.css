@@ -3482,6 +3482,91 @@ body {
 
 .cal-event--past { opacity: 0.65; }
 
+.cal-checklist-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  border: 1px solid rgba(196, 164, 164, 0.12);
+  box-shadow: var(--shadow);
+}
+
+.cal-checklist-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--charcoal-soft);
+}
+
+.cal-checklist-progress-pct { color: var(--gold); }
+
+.cal-checklist-items { margin-top: 8px; }
+
+.cal-check-item {
+  position: relative;
+  list-style: none;
+}
+
+.cal-check-item label { align-items: flex-start; }
+
+.cal-check-body { flex: 1; min-width: 0; }
+
+.cal-check-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cal-check-head strong {
+  font-size: var(--text-md);
+  color: var(--charcoal);
+  font-weight: 600;
+}
+
+.cal-check-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rose-deep);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.cal-check-note {
+  margin: 6px 0 0 40px;
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  line-height: 1.45;
+}
+
+.cal-check-date {
+  display: inline-block;
+  margin: 4px 0 0 40px;
+  font-size: var(--text-xs);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.cal-check-item--birth .cal-check-head strong { color: var(--rose-deep); }
+.cal-check-item--important { border-left: 3px solid var(--gold); padding-left: 4px; }
+.cal-check-item--screening { border-left: 3px solid #7ba7c9; padding-left: 4px; }
+
+.cal-check-del {
+  position: absolute;
+  top: 12px;
+  right: 0;
+}
+
+.cal-check-item.checked .cal-check-note,
+.cal-check-item.checked .cal-check-date { opacity: 0.55; }
+
 /* ─── Превью товаров WB / Ozon ─── */
 .product-preview {
   display: flex;
