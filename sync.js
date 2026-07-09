@@ -552,16 +552,82 @@ async function pushAlbumBlobs(keys, opts = {}) {
   }
 }
 
-async function pullRemoteForMerge() {
-  let main = null;
+function albumItemCount(payload) {
+  let n = 0;
+  Object.keys(SYNC_BLOB_PATHS).forEach(key => {
+    const items = parseJsonSafe(payload?.keys?.[key], []);
+    if (Array.isArray(items)) n += items.length;
+  });
+  return n;
+}
 
+function albumFingerprint(payload) {
+  const parts = [];
+  Object.keys(SYNC_BLOB_PATHS).forEach(key => {
+    const items = parseJsonSafe(payload?.keys?.[key], []);
+    if (!Array.isArray(items)) return;
+    items.forEach(item => {
+      parts.push([
+        item?.id,
+        item?.updatedAt,
+        (item?.url || '').length,
+        (item?.thumb || '').length
+      ].join(':'));
+    });
+  });
+  return parts.sort().join('|');
+}
+
+function albumDataChanged(a, b) {
+  return albumFingerprint(a) !== albumFingerprint(b);
+}
+
+function slimPayloadForStorage(payload) {
+  if (!payload?.keys) return payload;
+  const keys = { ...payload.keys };
+  Object.keys(SYNC_BLOB_PATHS).forEach(k => {
+    if (keys[k]) keys[k] = leanAlbumForSync(keys[k]);
+  });
+  return { ...payload, keys };
+}
+
+function migrateSlimLocalAlbums() {
+  if (!origSetItem) return;
+  applyingRemote = true;
+  Object.keys(SYNC_BLOB_PATHS).forEach(k => {
+    const val = localStorage.getItem(k);
+    if (!val) return;
+    const slim = leanAlbumForSync(val);
+    if (slim !== val) {
+      try { origSetItem(k, slim); } catch { /* quota */ }
+    }
+  });
+  applyingRemote = false;
+}
+
+async function pullLiveCloud() {
   try {
     const res = await syncRequest('GET', null, { silent: true, allowProxy: true });
-    if (res.ok) main = await res.json();
-  } catch { /* fallback to mirror */ }
+    if (res.ok) return await res.json();
+  } catch { /* fallback */ }
+  return null;
+}
 
-  if (!main?.keys || payloadScore(main) < 1) {
-    main = await pullFromLocalMirror();
+async function pullRemoteForMerge() {
+  const [live, mirror] = await Promise.all([
+    pullLiveCloud(),
+    pullFromLocalMirror()
+  ]);
+
+  let main = null;
+  const liveAt = live?.updatedAt || 0;
+  const mirrorAt = mirror?.updatedAt || 0;
+
+  if (live?.keys && mirror?.keys) {
+    main = liveAt >= mirrorAt ? mergePayloads(live, mirror) : mergePayloads(mirror, live);
+    main.updatedAt = Math.max(liveAt, mirrorAt);
+  } else {
+    main = live || mirror || { keys: {}, updatedAt: 0 };
   }
 
   if (!main?.keys) main = { keys: {}, updatedAt: 0 };
@@ -571,6 +637,36 @@ async function pullRemoteForMerge() {
     main.keys[key] = main.keys[key] ? mergeAlbumItems(val, main.keys[key]) : val;
   });
   return payloadScore(main) > 0 ? main : null;
+}
+
+async function pullOnlySync({ refresh = true, silent = true } = {}) {
+  if (!isSyncConfigured() || applyingRemote) return false;
+
+  const remote = await pullRemoteForMerge();
+  if (!remote?.keys) return false;
+
+  const isOwnEcho = remote.deviceId === getDeviceId()
+    && Math.abs(remote.updatedAt - lastPushAt) < 1500;
+  if (isOwnEcho) return false;
+
+  const local = collectSyncPayload();
+  const merged = mergePayloads(remote, local);
+  const storagePayload = slimPayloadForStorage(merged);
+
+  if (!payloadsDiffer(storagePayload, local) && !albumDataChanged(storagePayload, local)) {
+    return false;
+  }
+
+  if (remote.updatedAt) lastRemoteAt = remote.updatedAt;
+
+  if (applySyncPayload(storagePayload, true)) {
+    if (refresh) refreshAfterSync();
+    if (!silent) showToast?.('Обновлено с другого устройства');
+    syncStatus = 'live';
+    updateSyncStatusUI();
+    return true;
+  }
+  return false;
 }
 
 async function pushPayloadToCloud(payload, { silent = false, allowProxy = true } = {}) {
@@ -597,23 +693,22 @@ async function pushSyncToCloud(allowOverwrite = false) {
     if (!allowOverwrite) {
       const remote = await pullRemoteForMerge();
       if (remote?.keys) {
-        const remoteScore = payloadScore(remote);
-        const localScore = payloadScore(local);
+        const merged = mergePayloads(remote, local);
+        const storageMerged = slimPayloadForStorage(merged);
 
-        if (remoteScore > localScore + 50) {
-          const merged = mergePayloads(remote, local);
-          applySyncPayload(merged, true);
+        if (payloadsDiffer(storageMerged, local) || albumDataChanged(storageMerged, local)) {
+          applySyncPayload(storageMerged, true);
           refreshAfterSync();
-          return;
         }
 
-        const merged = mergePayloads(remote, local);
-        await pushPayloadToCloud(merged);
+        if (payloadsDiffer(local, remote)) {
+          await pushPayloadToCloud(storageMerged);
+        }
         return;
       }
     }
 
-    await pushPayloadToCloud(local);
+    await pushPayloadToCloud(slimPayloadForStorage(local));
   } catch {
     syncStatus = 'error';
     updateSyncStatusUI();
@@ -652,32 +747,29 @@ function payloadsDiffer(a, b) {
 async function runAutoSync({ refresh = false } = {}) {
   if (!isSyncConfigured() || applyingRemote) return false;
 
+  const changed = await pullOnlySync({ refresh, silent: true });
   const local = collectSyncPayload();
   const remote = await pullRemoteForMerge();
-  let changed = false;
 
-  if (remote?.keys && payloadScore(remote) > 0) {
-    const merged = mergePayloads(remote, local);
-    if (payloadsDiffer(merged, local)) {
-      changed = applySyncPayload(merged, true);
-    }
+  if (remote?.keys && payloadsDiffer(local, remote)) {
     try {
+      const merged = slimPayloadForStorage(mergePayloads(remote, local));
       await pushPayloadToCloud(merged, { silent: true });
       syncStatus = 'live';
     } catch {
-      syncStatus = changed ? 'live' : 'error';
+      if (!changed) syncStatus = 'error';
     }
-  } else if (payloadScore(local) > 0) {
+  } else if (!remote?.keys && payloadScore(local) > 0) {
     try {
-      await pushPayloadToCloud(local, { silent: true });
-      lastRemoteAt = local.updatedAt;
+      await pushPayloadToCloud(slimPayloadForStorage(local), { silent: true });
       syncStatus = 'live';
     } catch {
       syncStatus = 'error';
     }
+  } else if (changed) {
+    syncStatus = 'live';
   }
 
-  if (changed && refresh) refreshAfterSync();
   updateSyncStatusUI();
   return changed;
 }
@@ -689,28 +781,17 @@ function refreshAfterSync() {
 
 function startSyncPolling() {
   clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    if (!syncReady || document.hidden) return;
-
-    const remote = await pullRemoteForMerge();
-    if (!remote?.keys) return;
-
-    const isOwnEcho = remote.deviceId === getDeviceId()
-      && Math.abs(remote.updatedAt - lastPushAt) < 1500;
-    if (isOwnEcho) return;
-
-    const local = collectSyncPayload();
-    const merged = mergePayloads(remote, local);
-    if (!payloadsDiffer(merged, local)) return;
-
-    if (applySyncPayload(merged, true)) {
-      refreshAfterSync();
-      showToast?.('Обновлено с другого устройства');
-    }
+  pollTimer = setInterval(() => {
+    if (!syncReady) return;
+    pullOnlySync({ refresh: !document.hidden, silent: true });
   }, SYNC_POLL_MS);
 
   document.addEventListener('visibilitychange', async () => {
-    if (!document.hidden && syncReady) await runAutoSync({ refresh: true });
+    if (!document.hidden && syncReady) await pullOnlySync({ refresh: true, silent: false });
+  });
+
+  window.addEventListener('focus', () => {
+    if (syncReady) pullOnlySync({ refresh: true, silent: true });
   });
 }
 
@@ -722,6 +803,7 @@ async function initSync() {
   }
 
   patchLocalStorageForSync();
+  migrateSlimLocalAlbums();
   syncStatus = 'connecting';
   updateSyncStatusUI();
 
@@ -758,7 +840,7 @@ function updateSyncStatusUI() {
 async function forceSyncNow() {
   syncStatus = 'connecting';
   updateSyncStatusUI();
-  await runAutoSync({ refresh: true });
+  await pullOnlySync({ refresh: true, silent: false });
   syncReady = true;
   updateSyncStatusUI();
 }
@@ -775,4 +857,5 @@ window.updateSyncStatus = updateSyncStatusUI;
 window.forceSyncNow = forceSyncNow;
 window.forcePushNow = forcePushNow;
 window.flushSyncPush = flushSyncPush;
+window.pullOnlySync = pullOnlySync;
 window.notifyDataChanged = notifyDataChanged;
