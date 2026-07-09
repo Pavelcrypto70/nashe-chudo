@@ -890,11 +890,15 @@ const MILESTONE_DEFS = [
   { id: 'birth', title: 'Роды', desc: 'День встречи', icon: 'fa-baby' }
 ];
 
-const DEFAULT_BABY_NAMES = [
-  'Артём', 'Максим', 'Лев', 'Марк', 'Тимофей',
-  'София', 'Анна', 'Мария', 'Алиса', 'Ева',
-  'Александр', 'Виктория', 'Милана', 'Дарья', 'Иван'
+const DEFAULT_BOY_NAMES = [
+  'Артём', 'Максим', 'Лев', 'Марк', 'Тимофей', 'Александр', 'Иван'
 ];
+
+const DEFAULT_GIRL_NAMES = [
+  'София', 'Анна', 'Мария', 'Алиса', 'Ева', 'Виктория', 'Милана', 'Дарья'
+];
+
+const DEFAULT_BABY_NAMES = [...DEFAULT_BOY_NAMES, ...DEFAULT_GIRL_NAMES];
 
 const PREGNANCY_CALENDAR = [
   { week: 6, title: 'Первое УЗИ', note: 'Подтверждение беременности, сердцебиение', icon: 'fa-image', type: 'screening' },

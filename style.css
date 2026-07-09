@@ -2752,7 +2752,8 @@ body {
   .this-week-grid,
   .fy-panel-grid,
   .economy-grid,
-  .economy-advice { grid-template-columns: 1fr; }
+  .economy-advice,
+  .names-columns { grid-template-columns: 1fr; }
 
   .month-panel,
   .this-week-panel,
@@ -3348,6 +3349,31 @@ body {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  align-items: center;
+}
+
+.name-gender-pick {
+  display: flex;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(196, 164, 164, 0.35);
+  flex-shrink: 0;
+}
+
+.name-gender-btn {
+  width: 44px;
+  height: 48px;
+  border: none;
+  background: var(--white);
+  color: var(--charcoal-soft);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.name-gender-btn.active {
+  background: var(--rose-light);
+  color: var(--rose-deep);
 }
 
 .name-add-form input {
@@ -3369,6 +3395,35 @@ body {
 
 .names-favorites h4 { margin: 0 0 8px; font-size: var(--text-sm); color: var(--rose-deep); }
 .names-favorites p { margin: 0; font-size: var(--text-md); font-weight: 500; }
+.names-favorites-cols { display: flex; flex-direction: column; gap: 6px; }
+.names-fav-label { font-weight: 600; color: var(--rose-deep); margin-right: 6px; }
+
+.names-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.names-column-title {
+  margin: 0 0 12px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--charcoal);
+}
+
+.names-column-title .fa-mars { color: #6b8cae; }
+.names-column-title .fa-venus { color: var(--rose-deep); }
+
+.names-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--charcoal-soft);
+  padding: 12px 0;
+}
 
 .names-list { display: grid; gap: 8px; }
 

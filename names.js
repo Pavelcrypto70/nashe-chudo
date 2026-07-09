@@ -1,6 +1,25 @@
-/* Голосование за имена */
+/* Голосование за имена — мужские / женские */
 
 const NAMES_KEY = 'nashe_chudo_names';
+let nameAddGender = 'male';
+
+function getBoyNamesSet() {
+  const list = typeof DEFAULT_BOY_NAMES !== 'undefined' ? DEFAULT_BOY_NAMES : [];
+  return new Set(list.map(n => n.toLowerCase()));
+}
+
+function getGirlNamesSet() {
+  const list = typeof DEFAULT_GIRL_NAMES !== 'undefined' ? DEFAULT_GIRL_NAMES : [];
+  return new Set(list.map(n => n.toLowerCase()));
+}
+
+function inferNameGender(name) {
+  const key = (name || '').toLowerCase();
+  if (getGirlNamesSet().has(key)) return 'female';
+  if (getBoyNamesSet().has(key)) return 'male';
+  if (/[ая]$/.test(key) && !/^(никита|илья|кузьма|фома|савва|лука)$/i.test(key)) return 'female';
+  return 'male';
+}
 
 function getNamesState() {
   try { return JSON.parse(localStorage.getItem(NAMES_KEY)) || {}; } catch { return {}; }
@@ -9,17 +28,41 @@ function saveNamesState(s) { localStorage.setItem(NAMES_KEY, JSON.stringify(s));
 
 function ensureNamesState() {
   const state = getNamesState();
-  const defaults = typeof DEFAULT_BABY_NAMES !== 'undefined' ? DEFAULT_BABY_NAMES : [];
+  const boys = typeof DEFAULT_BOY_NAMES !== 'undefined' ? DEFAULT_BOY_NAMES : [];
+  const girls = typeof DEFAULT_GIRL_NAMES !== 'undefined' ? DEFAULT_GIRL_NAMES : [];
   let changed = false;
-  defaults.forEach(n => {
+
+  boys.forEach(n => {
     const key = n.toLowerCase();
     if (!state[key]) {
-      state[key] = { name: n, vote: null };
+      state[key] = { name: n, vote: null, gender: 'male' };
       changed = true;
     }
   });
+  girls.forEach(n => {
+    const key = n.toLowerCase();
+    if (!state[key]) {
+      state[key] = { name: n, vote: null, gender: 'female' };
+      changed = true;
+    }
+  });
+
+  Object.values(state).forEach(entry => {
+    if (!entry.gender) {
+      entry.gender = inferNameGender(entry.name);
+      changed = true;
+    }
+  });
+
   if (changed) saveNamesState(state);
   return getNamesState();
+}
+
+function sortNames(list) {
+  return list.sort((a, b) => {
+    const score = v => (v.vote === 'yes' ? 2 : v.vote === 'maybe' ? 1 : 0);
+    return score(b) - score(a) || a.name.localeCompare(b.name, 'ru');
+  });
 }
 
 function initNames() {
@@ -48,6 +91,15 @@ function initNames() {
     });
   }
 
+  document.querySelectorAll('.name-gender-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      nameAddGender = btn.dataset.gender;
+      document.querySelectorAll('.name-gender-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.gender === nameAddGender);
+      });
+    });
+  });
+
   renderNames();
   document.getElementById('nameAddForm')?.addEventListener('submit', e => {
     e.preventDefault();
@@ -56,7 +108,11 @@ function initNames() {
     if (!name) return;
     const state = getNamesState();
     const key = name.toLowerCase();
-    if (!state[key]) state[key] = { name, vote: null };
+    if (!state[key]) {
+      state[key] = { name, vote: null, gender: nameAddGender };
+    } else {
+      state[key].gender = nameAddGender;
+    }
     saveNamesState(state);
     input.value = '';
     renderNames();
@@ -70,16 +126,32 @@ function renderNames() {
 
   ensureNamesState();
   const state = getNamesState();
+  const list = Object.values(state);
+  const boys = sortNames(list.filter(n => n.gender === 'male'));
+  const girls = sortNames(list.filter(n => n.gender !== 'male'));
 
-  const list = Object.values(state).sort((a, b) => {
-    const score = v => (v.vote === 'yes' ? 2 : v.vote === 'maybe' ? 1 : 0);
-    return score(b) - score(a) || a.name.localeCompare(b.name, 'ru');
-  });
+  const yesBoys = boys.filter(n => n.vote === 'yes');
+  const yesGirls = girls.filter(n => n.vote === 'yes');
 
-  const yes = list.filter(n => n.vote === 'yes');
   grid.innerHTML = `
-    ${yes.length ? `<div class="names-favorites"><h4><i class="fas fa-heart"></i> Нравится</h4><p>${yes.map(n => escapeHtml(n.name)).join(' · ')}</p></div>` : ''}
-    <div class="names-list">${list.map(n => nameCard(n)).join('')}</div>`;
+    ${(yesBoys.length || yesGirls.length) ? `
+      <div class="names-favorites">
+        <h4><i class="fas fa-heart"></i> Нравится</h4>
+        <div class="names-favorites-cols">
+          ${yesBoys.length ? `<p><span class="names-fav-label">М:</span> ${yesBoys.map(n => escapeHtml(n.name)).join(' · ')}</p>` : ''}
+          ${yesGirls.length ? `<p><span class="names-fav-label">Ж:</span> ${yesGirls.map(n => escapeHtml(n.name)).join(' · ')}</p>` : ''}
+        </div>
+      </div>` : ''}
+    <div class="names-columns">
+      <div class="names-column">
+        <h3 class="names-column-title"><i class="fas fa-mars"></i> Мужские</h3>
+        <div class="names-list">${boys.length ? boys.map(nameCard).join('') : '<p class="names-empty">Пока нет — добавьте своё.</p>'}</div>
+      </div>
+      <div class="names-column">
+        <h3 class="names-column-title"><i class="fas fa-venus"></i> Женские</h3>
+        <div class="names-list">${girls.length ? girls.map(nameCard).join('') : '<p class="names-empty">Пока нет — добавьте своё.</p>'}</div>
+      </div>
+    </div>`;
 }
 
 function nameCard(n) {
