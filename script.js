@@ -101,8 +101,8 @@ function refreshAllData() {
 
   if (typeof renderNames === 'function') renderNames();
   if (typeof renderGiftCard === 'function') renderGiftCard();
-  if (typeof renderSettingsPanel === 'function') renderSettingsPanel();
   if (typeof updateSyncStatus === 'function') updateSyncStatus();
+  if (typeof updateCloudBackupStatus === 'function') updateCloudBackupStatus();
 }
 
 /* ─── Расчёт срока (акушерские недели от ПМ) ─── */
