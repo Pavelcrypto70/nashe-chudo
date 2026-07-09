@@ -46,7 +46,11 @@ function saveStoryPhotos(p) {
   notifyDataChanged?.();
 }
 
-function readImageFile(file, maxSize = 480) {
+function photoDisplayUrl(item) {
+  return item?.url || item?.thumb || '';
+}
+
+function readImageFile(file, maxSize = 480, thumbSize = 220) {
   return new Promise((resolve, reject) => {
     if (!file || !file.type.startsWith('image/')) {
       reject(new Error('not an image'));
@@ -56,21 +60,27 @@ function readImageFile(file, maxSize = 480) {
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        let { width, height } = img;
-        if (width > maxSize || height > maxSize) {
-          if (width > height) {
-            height = Math.round(height * maxSize / width);
-            width = maxSize;
-          } else {
-            width = Math.round(width * maxSize / height);
-            height = maxSize;
+        const make = (size, quality) => {
+          let { width, height } = img;
+          if (width > size || height > size) {
+            if (width > height) {
+              height = Math.round(height * size / width);
+              width = size;
+            } else {
+              width = Math.round(width * size / height);
+              height = size;
+            }
           }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.55));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          return canvas.toDataURL('image/jpeg', quality);
+        };
+        resolve({
+          url: make(maxSize, 0.55),
+          thumb: make(thumbSize, 0.5)
+        });
       };
       img.onerror = reject;
       img.src = reader.result;
@@ -83,12 +93,12 @@ function readImageFile(file, maxSize = 480) {
 function renderStoryGallery() {
   const grid = document.getElementById('storyGallery');
   if (!grid) return;
-  const photos = getStoryPhotos().filter(p => p.url);
+  const photos = getStoryPhotos().filter(p => photoDisplayUrl(p));
 
   grid.innerHTML = photos.length
     ? photos.map((p, i) => `
       <figure class="story-photo">
-        <img src="${escapeHtml(p.url)}" alt="${escapeHtml(p.caption || '')}" loading="lazy">
+        <img src="${escapeHtml(photoDisplayUrl(p))}" alt="${escapeHtml(p.caption || '')}" loading="lazy">
         ${p.caption ? `<figcaption>${escapeHtml(p.caption)}</figcaption>` : ''}
       </figure>`).join('')
     : `<p class="story-gallery-empty">Фото появятся здесь — добавьте ссылки в альбоме ниже или в настройках Павел подставит ваши снимки.</p>`;
@@ -225,9 +235,9 @@ function renderMemoriesPanel() {
         <label class="mem-field"><span>Подпись</span><input type="text" name="caption" placeholder="Наше фото..." maxlength="80"></label>
         <button type="submit" class="btn-wish btn-wish-primary"><i class="fas fa-plus"></i> Добавить в историю</button>
       </form>
-      <div class="mem-grid mem-grid-small">${photos.filter(p => p.url).map((p, i) => `
+      <div class="mem-grid mem-grid-small">${photos.filter(p => photoDisplayUrl(p)).map((p, i) => `
         <figure class="story-photo story-photo-sm">
-          <img src="${escapeHtml(p.url)}" alt="" loading="lazy">
+          <img src="${escapeHtml(photoDisplayUrl(p))}" alt="" loading="lazy">
           <figcaption>${escapeHtml(p.caption || '')}</figcaption>
           <button type="button" class="mem-del" data-del-photo="${i}"><i class="fas fa-times"></i></button>
         </figure>`).join('') || '<p class="mem-empty">Добавьте ссылки на ваши фотографии.</p>'}</div>`;
@@ -244,8 +254,9 @@ function renderMemoriesPanel() {
 }
 
 function memUltrasoundCard(u, i) {
+  const src = photoDisplayUrl(u);
   return `<figure class="mem-card">
-    <a href="${escapeHtml(u.url)}" target="_blank" rel="noopener" class="mem-card-img"><img src="${escapeHtml(u.url)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('broken')"></a>
+    <a href="${escapeHtml(src)}" target="_blank" rel="noopener" class="mem-card-img"><img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('broken')"></a>
     <div class="mem-card-body">
       <strong>${escapeHtml(u.week)}</strong>
       <span>${formatDateRu(u.date)}</span>
@@ -273,13 +284,16 @@ function onUltrasoundSubmit(e) {
   const urlInput = (fd.get('url') || '').trim();
   const btn = form.querySelector('[type="submit"]');
 
-  const save = url => {
+  const save = data => {
+    const url = typeof data === 'string' ? data : data.url;
+    const thumb = typeof data === 'string' ? '' : (data.thumb || '');
     const items = getUltrasound();
     items.push({
       id: 'us_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       week: fd.get('week'),
       date: fd.get('date'),
       url,
+      thumb,
       caption: fd.get('caption'),
       updatedAt: new Date().toISOString()
     });
@@ -328,11 +342,14 @@ function onStoryPhotoSubmit(e) {
   const urlInput = (fd.get('url') || '').trim();
   const btn = form.querySelector('[type="submit"]');
 
-  const save = url => {
+  const save = data => {
+    const url = typeof data === 'string' ? data : data.url;
+    const thumb = typeof data === 'string' ? '' : (data.thumb || '');
     const photos = getStoryPhotos();
     photos.push({
       id: 'ph_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       url,
+      thumb,
       caption: fd.get('caption'),
       updatedAt: new Date().toISOString()
     });

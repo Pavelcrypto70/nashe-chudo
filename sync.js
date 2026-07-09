@@ -251,6 +251,46 @@ function mergeNamesState(remoteStr, localStr) {
   return JSON.stringify(merged);
 }
 
+function mergeAlbumItems(remoteStr, localStr) {
+  try {
+    const r = parseJsonSafe(remoteStr, []);
+    const l = parseJsonSafe(localStr, []);
+    if (!Array.isArray(r) || !Array.isArray(l)) return pickBetterValue(remoteStr, localStr);
+
+    const pickUrl = (a, b) => {
+      const score = u => (u && String(u).length > 20 ? String(u).length : 0);
+      return score(a) >= score(b) ? (a || '') : (b || '');
+    };
+
+    const map = new Map();
+    const put = item => {
+      if (!item?.id) return;
+      const prev = map.get(item.id);
+      if (!prev) {
+        map.set(item.id, item);
+        return;
+      }
+      map.set(item.id, {
+        ...prev,
+        ...item,
+        url: pickUrl(prev.url, item.url),
+        thumb: pickUrl(prev.thumb, item.thumb),
+        caption: item.caption ?? prev.caption,
+        week: item.week ?? prev.week,
+        date: item.date ?? prev.date,
+        cloudRef: item.cloudRef || prev.cloudRef || item.id,
+        updatedAt: [prev.updatedAt, item.updatedAt].filter(Boolean).sort().pop()
+      });
+    };
+
+    l.forEach(put);
+    r.forEach(put);
+    return JSON.stringify([...map.values()]);
+  } catch {
+    return pickBetterValue(remoteStr, localStr);
+  }
+}
+
 function mergeJsonArraysById(remoteStr, localStr) {
   try {
     const r = JSON.parse(remoteStr || '[]');
@@ -306,6 +346,8 @@ function mergePayloads(remote, local) {
     let merged;
     if (key === 'nashe_chudo_names') {
       merged = mergeNamesState(remote?.keys?.[key], local?.keys?.[key]);
+    } else if (key === 'nashe_chudo_ultrasound' || key === 'nashe_chudo_story_photos') {
+      merged = mergeAlbumItems(remote?.keys?.[key], local?.keys?.[key]);
     } else if (MERGE_ARRAY_KEYS.includes(key)) {
       merged = mergeJsonArraysById(remote?.keys?.[key], local?.keys?.[key]);
     } else if (MERGE_OBJECT_KEYS.includes(key)) {
@@ -382,6 +424,22 @@ function albumItemBlobPath(itemId) {
   return `${ALBUM_ITEM_BLOB_PREFIX}${itemId}`;
 }
 
+function leanAlbumForSync(val) {
+  const items = parseJsonSafe(val, null);
+  if (!Array.isArray(items)) return val;
+  return JSON.stringify(items.map(item => {
+    const fullUrl = item?.url || '';
+    const isData = String(fullUrl).startsWith('data:');
+    const thumb = item?.thumb || '';
+    return {
+      ...item,
+      url: isData ? '' : fullUrl,
+      cloudRef: item?.cloudRef || item?.id || '',
+      thumb: thumb || (isData && fullUrl.length < 50000 ? fullUrl : '')
+    };
+  }));
+}
+
 function stripAlbumDataUrls(items) {
   return (items || []).map(item => {
     if (!item?.url || !String(item.url).startsWith('data:')) return item;
@@ -393,25 +451,36 @@ async function hydrateAlbumItems(items) {
   const hydrated = [];
   for (const item of items || []) {
     if (!item) continue;
-    if (item.url && !item.cloudRef) {
+    const hasUrl = item.url && String(item.url).length > 20;
+    if (hasUrl && !item.cloudRef) {
       hydrated.push(item);
+      continue;
+    }
+    if (item.thumb && String(item.thumb).length > 20 && !item.cloudRef) {
+      hydrated.push({ ...item, url: item.url || item.thumb });
       continue;
     }
     const ref = item.cloudRef || item.id;
     if (!ref) {
-      hydrated.push(item);
+      hydrated.push({ ...item, url: item.url || item.thumb || '' });
       continue;
     }
     try {
       const res = await syncRequestUrl(syncBlobUrl(albumItemBlobPath(ref)), 'GET', null, { silent: true, allowProxy: true });
       if (!res.ok) {
-        hydrated.push(item);
+        hydrated.push({ ...item, url: item.thumb || item.url || '' });
         continue;
       }
       const data = await res.json();
-      hydrated.push({ ...item, url: data?.value || item.url || '', cloudRef: ref });
+      const blobUrl = data?.value || '';
+      hydrated.push({
+        ...item,
+        url: blobUrl || item.url || item.thumb || '',
+        thumb: item.thumb || '',
+        cloudRef: ref
+      });
     } catch {
-      hydrated.push(item);
+      hydrated.push({ ...item, url: item.thumb || item.url || '' });
     }
   }
   return hydrated;
@@ -438,12 +507,14 @@ async function pullAlbumBlobs() {
 }
 
 async function pushAlbumItemBlob(item, opts = {}) {
-  if (!item?.id || !item?.url || !String(item.url).startsWith('data:')) return;
+  const src = (item?.url && String(item.url).startsWith('data:')) ? item.url
+    : (item?.thumb && String(item.thumb).startsWith('data:')) ? item.thumb : '';
+  if (!item?.id || !src) return;
   const body = {
     updatedAt: Date.now(),
     deviceId: getDeviceId(),
     device: getDeviceLabel(),
-    value: item.url
+    value: src
   };
   await syncRequestUrl(syncBlobUrl(albumItemBlobPath(item.id)), 'POST', body, { silent: true, allowProxy: true, ...opts });
 }
@@ -496,14 +567,18 @@ async function pullRemoteForMerge() {
   if (!main?.keys) main = { keys: {}, updatedAt: 0 };
 
   const blobs = await pullAlbumBlobs();
-  main.keys = { ...main.keys, ...blobs };
+  Object.entries(blobs).forEach(([key, val]) => {
+    main.keys[key] = main.keys[key] ? mergeAlbumItems(val, main.keys[key]) : val;
+  });
   return payloadScore(main) > 0 ? main : null;
 }
 
 async function pushPayloadToCloud(payload, { silent = false, allowProxy = true } = {}) {
   lastPushAt = payload.updatedAt;
   const leanKeys = { ...payload.keys };
-  Object.keys(SYNC_BLOB_PATHS).forEach(k => delete leanKeys[k]);
+  Object.keys(SYNC_BLOB_PATHS).forEach(k => {
+    if (leanKeys[k]) leanKeys[k] = leanAlbumForSync(leanKeys[k]);
+  });
   const lean = { ...payload, keys: leanKeys };
   const res = await syncRequest('POST', lean, { silent, allowProxy });
   if (!res.ok) throw new Error('push failed');
