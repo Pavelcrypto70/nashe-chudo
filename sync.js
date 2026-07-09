@@ -248,7 +248,19 @@ function scheduleSyncPush() {
   pushTimer = setTimeout(() => pushSyncToCloud(false), SYNC_DEBOUNCE_MS);
 }
 
-async function pushPayloadToCloud(payload, { silent = false, allowProxy = false } = {}) {
+async function pullRemoteForMerge() {
+  try {
+    const res = await syncRequest('GET', null, { silent: true, allowProxy: true });
+    if (res.status === 404) return null;
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.keys && payloadScore(data) > 0) return data;
+    }
+  } catch { /* fallback to mirror */ }
+  return pullFromLocalMirror();
+}
+
+async function pushPayloadToCloud(payload, { silent = false, allowProxy = true } = {}) {
   lastPushAt = payload.updatedAt;
   const res = await syncRequest('POST', payload, { silent, allowProxy });
   if (!res.ok) throw new Error('push failed');
@@ -264,18 +276,15 @@ async function pushSyncToCloud(allowOverwrite = false) {
 
   try {
     if (!allowOverwrite) {
-      const remote = await pullSyncFromCloud({ silent: true, allowProxy: false });
+      const remote = await pullRemoteForMerge();
       if (remote?.keys) {
         const remoteScore = payloadScore(remote);
         const localScore = payloadScore(local);
 
-        if (remoteScore > localScore) {
-          applySyncPayload(remote, true);
+        if (remoteScore > localScore + 50) {
+          const merged = mergePayloads(remote, local);
+          applySyncPayload(merged, true);
           refreshAfterSync();
-          return;
-        }
-
-        if (remoteScore === localScore && remote.updatedAt >= local.updatedAt) {
           return;
         }
 
@@ -344,12 +353,13 @@ function startSyncPolling() {
 
     if (isOwnEcho) return;
 
-    const shouldPull = remote.updatedAt > lastRemoteAt
-      || remoteScore > localScore + 20;
+    const shouldPull = remote.updatedAt > lastRemoteAt + 5000
+      || payloadScore(mergePayloads(remote, local)) !== payloadScore(local);
 
     if (!shouldPull) return;
 
-    const changed = applySyncPayload(remote, true);
+    const merged = mergePayloads(remote, local);
+    const changed = applySyncPayload(merged, true);
     if (changed) {
       refreshAfterSync();
       showToast?.('Обновлено с другого устройства');
@@ -357,8 +367,20 @@ function startSyncPolling() {
   }, SYNC_POLL_MS);
 
   document.addEventListener('visibilitychange', async () => {
-    if (!document.hidden && syncReady) await forceSyncNow();
+    if (!document.hidden && syncReady) await softSyncOnFocus();
   });
+}
+
+async function softSyncOnFocus() {
+  try {
+    await pushSyncToCloud(false);
+    const remote = await pullSyncFromCloud({ silent: true, allowProxy: true });
+    if (!remote?.keys) return;
+    const local = collectSyncPayload();
+    const merged = mergePayloads(remote, local);
+    if (JSON.stringify(merged.keys) === JSON.stringify(local.keys)) return;
+    if (applySyncPayload(merged, true)) refreshAfterSync();
+  } catch { /* ignore */ }
 }
 
 async function initSync() {
@@ -385,7 +407,7 @@ async function initSync() {
       const merged = mergePayloads(remote, local);
       syncChanged = applySyncPayload(merged, true);
     } else if (payloadScore(local) > 50) {
-      await pushPayloadToCloud(local);
+      await pushPayloadToCloud(local, { allowProxy: true });
       lastRemoteAt = local.updatedAt;
     }
 
@@ -413,7 +435,7 @@ function updateSyncStatusUI() {
     off: { icon: 'fa-cloud-slash', text: 'Синхронизация не настроена' },
     connecting: { icon: 'fa-spinner fa-spin', text: 'Загружаем общие данные...' },
     live: { icon: 'fa-cloud', text: 'Общая база работает — изменения синхронизируются' },
-    error: { icon: 'fa-triangle-exclamation', text: 'Облако напрямую недоступно — нажмите «Загрузить из облака» (читает копию с сайта)' }
+    error: { icon: 'fa-triangle-exclamation', text: 'Загрузка с сайта работает. После правок нажмите «Отправить в облако»' }
   }[syncStatus] || { icon: 'fa-cloud', text: '' };
 
   el.className = 'sync-status sync-status--' + syncStatus;
@@ -438,7 +460,9 @@ async function forceSyncNow() {
       return;
     }
 
-    applyCloudSnapshot(remote);
+    const local = collectSyncPayload();
+    const merged = mergePayloads(remote, local);
+    applySyncPayload(merged, true);
 
     syncReady = true;
     syncStatus = 'live';
@@ -446,7 +470,7 @@ async function forceSyncNow() {
 
     let shopCount = 0;
     try { shopCount = JSON.parse(localStorage.getItem('nashe_chudo_shop_items') || '[]').length; } catch { /* ignore */ }
-    showToast?.(`Загружено из облака. К родам: ${shopCount} товаров`);
+    showToast?.(`Объединено с облаком. К родам: ${shopCount} товаров`);
   } catch {
     syncStatus = 'error';
     showToast?.('Не удалось загрузить из облака');
@@ -455,5 +479,38 @@ async function forceSyncNow() {
   updateSyncStatusUI();
 }
 
+async function forcePushNow() {
+  if (!isSyncConfigured()) {
+    showToast?.('Синхронизация не настроена');
+    return;
+  }
+
+  syncStatus = 'connecting';
+  updateSyncStatusUI();
+
+  try {
+    const local = collectSyncPayload();
+    const remote = await pullRemoteForMerge();
+    const payload = remote?.keys ? mergePayloads(remote, local) : local;
+    applySyncPayload(payload, true);
+    await pushPayloadToCloud(payload, { allowProxy: true });
+
+    syncReady = true;
+    syncStatus = 'live';
+    refreshAfterSync();
+
+    let shopCount = 0;
+    try { shopCount = JSON.parse(localStorage.getItem('nashe_chudo_shop_items') || '[]').length; } catch { /* ignore */ }
+    showToast?.(`Отправлено в облако. К родам: ${shopCount} товаров. Ира увидит через ~15 мин`);
+  } catch (err) {
+    console.warn('Push failed:', err);
+    syncStatus = 'error';
+    showToast?.('Не удалось отправить в облако — попробуйте ещё раз');
+  }
+
+  updateSyncStatusUI();
+}
+
 window.updateSyncStatus = updateSyncStatusUI;
 window.forceSyncNow = forceSyncNow;
+window.forcePushNow = forcePushNow;

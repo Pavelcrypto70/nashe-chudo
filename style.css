@@ -3519,7 +3519,8 @@ body {
 .sync-status--live { background: #edf7ef; color: #3d6b47; }
 .sync-status--error { background: #fdf0f0; color: #9b4d4d; }
 .settings-sync-hint { font-size: var(--text-sm); color: var(--charcoal-soft); line-height: 1.5; margin: 0 0 12px; }
-.settings-card-sync .btn-sm { margin-top: 4px; }
+.settings-sync-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.settings-card-sync .btn-sm { margin-top: 0; }
 
 .settings-copy-block {
   margin-top: 12px;
