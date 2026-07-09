@@ -286,7 +286,8 @@ function onUltrasoundSubmit(e) {
     saveUltrasound(items.sort((a, b) => new Date(a.date) - new Date(b.date)));
     form.reset();
     renderMemoriesPanel();
-    showToast('Снимок добавлен');
+    showToast('Снимок добавлен — синхронизируем…');
+    flushSyncPush?.().catch(() => {});
   };
 
   if (file && file.size > 0) {
@@ -339,7 +340,8 @@ function onStoryPhotoSubmit(e) {
     form.reset();
     renderStoryGallery();
     renderMemoriesPanel();
-    showToast('Фото добавлено');
+    showToast('Фото добавлено — синхронизируем…');
+    flushSyncPush?.().catch(() => {});
   };
 
   if (file && file.size > 0) {

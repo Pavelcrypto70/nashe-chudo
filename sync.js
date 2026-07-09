@@ -1,7 +1,13 @@
 /* Облачная синхронизация — общая база для телефона, ПК и всех устройств (MantleDB) */
 
-const SYNC_POLL_MS = 8000;
-const SYNC_DEBOUNCE_MS = 1000;
+const SYNC_POLL_MS = 3000;
+const SYNC_DEBOUNCE_MS = 400;
+const SYNC_URGENT_KEYS = new Set([
+  'nashe_chudo_ultrasound',
+  'nashe_chudo_story_photos',
+  'nashe_chudo_shop_items',
+  'nashe_chudo_gifts_wishlist'
+]);
 const DEVICE_ID_KEY = 'nashe_chudo_device_id';
 
 let lastRemoteAt = 0;
@@ -360,10 +366,16 @@ function applySyncPayload(data, force = false) {
   return true;
 }
 
-function scheduleSyncPush() {
+function scheduleSyncPush(urgent = false) {
   if (applyingRemote) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => pushSyncToCloud(false), SYNC_DEBOUNCE_MS);
+  pushTimer = setTimeout(() => pushSyncToCloud(false), urgent ? 0 : SYNC_DEBOUNCE_MS);
+}
+
+async function flushSyncPush() {
+  if (applyingRemote) return;
+  clearTimeout(pushTimer);
+  await pushSyncToCloud(false);
 }
 
 function albumItemBlobPath(itemId) {
@@ -470,13 +482,15 @@ async function pushAlbumBlobs(keys, opts = {}) {
 }
 
 async function pullRemoteForMerge() {
-  let main = await pullFromLocalMirror();
+  let main = null;
 
-  if (!main?.keys) {
-    try {
-      const res = await syncRequest('GET', null, { silent: true, allowProxy: true });
-      if (res.ok) main = await res.json();
-    } catch { /* fallback */ }
+  try {
+    const res = await syncRequest('GET', null, { silent: true, allowProxy: true });
+    if (res.ok) main = await res.json();
+  } catch { /* fallback to mirror */ }
+
+  if (!main?.keys || payloadScore(main) < 1) {
+    main = await pullFromLocalMirror();
   }
 
   if (!main?.keys) main = { keys: {}, updatedAt: 0 };
@@ -549,7 +563,9 @@ function patchLocalStorageForSync() {
   origSetItem = localStorage.setItem.bind(localStorage);
   localStorage.setItem = function (key, value) {
     origSetItem(key, value);
-    if (BACKUP_KEYS.includes(key) && !applyingRemote) scheduleSyncPush();
+    if (BACKUP_KEYS.includes(key) && !applyingRemote) {
+      scheduleSyncPush(SYNC_URGENT_KEYS.has(key));
+    }
   };
 }
 
@@ -656,7 +672,7 @@ function updateSyncStatusUI() {
   const meta = {
     off: { icon: 'fa-cloud-slash', text: 'Синхронизация не настроена' },
     connecting: { icon: 'fa-spinner fa-spin', text: 'Загружаем общие данные...' },
-    live: { icon: 'fa-cloud', text: 'Общая база — синхронизация автоматическая (~8 сек)' },
+    live: { icon: 'fa-cloud', text: 'Общая база — синхронизация автоматическая (~3 сек)' },
     error: { icon: 'fa-cloud', text: 'Синхронизация в фоне — данные сохраняются на этом устройстве' }
   }[syncStatus] || { icon: 'fa-cloud', text: '' };
 
@@ -677,10 +693,11 @@ async function forcePushNow() {
 }
 
 function notifyDataChanged() {
-  scheduleSyncPush();
+  scheduleSyncPush(true);
 }
 
 window.updateSyncStatus = updateSyncStatusUI;
 window.forceSyncNow = forceSyncNow;
 window.forcePushNow = forcePushNow;
+window.flushSyncPush = flushSyncPush;
 window.notifyDataChanged = notifyDataChanged;
