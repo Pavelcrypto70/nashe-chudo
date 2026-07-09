@@ -3532,6 +3532,20 @@ body {
 .sync-status--connecting { background: #fff8eb; color: #8a6d3b; }
 .sync-status--live { background: #edf7ef; color: #3d6b47; }
 .sync-status--error { background: #fdf0f0; color: #9b4d4d; }
+
+.cloud-backup-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: var(--text-sm);
+  margin-bottom: 12px;
+}
+
+.cloud-backup-status--unknown { background: #f5f0eb; color: var(--charcoal-soft); }
+.cloud-backup-status--live { background: #f3eef8; color: #5c4a6e; }
+.cloud-backup-status--error { background: #fdf0f0; color: #9b4d4d; }
 .settings-sync-hint { font-size: var(--text-sm); color: var(--charcoal-soft); line-height: 1.5; margin: 0 0 12px; }
 .settings-sync-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .settings-card-sync .btn-sm { margin-top: 0; }

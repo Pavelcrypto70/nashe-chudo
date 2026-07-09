@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths-ignore:
       - sync-data.json
+      - backup-latest.json
 
 permissions:
   contents: write
@@ -30,6 +31,7 @@ jobs:
           curl -sfS "https://mantledb.sh/v2/${NS}/family/sync" -H "X-Mantle-Key: ${KEY}" -o sync-main.json
           curl -sfS "https://mantledb.sh/v2/${NS}/family/album/ultrasound" -H "X-Mantle-Key: ${KEY}" -o blob-ultrasound.json || echo '{}' > blob-ultrasound.json
           curl -sfS "https://mantledb.sh/v2/${NS}/family/album/story" -H "X-Mantle-Key: ${KEY}" -o blob-story.json || echo '{}' > blob-story.json
+          curl -sfS "https://mantledb.sh/v2/${NS}/family/backup/latest" -H "X-Mantle-Key: ${KEY}" -o backup-latest.json || echo '{}' > backup-latest.json
           node scripts/build-sync-snapshot.js
           node -e "const d=require('./sync-data.json'); if(!d.keys) process.exit(1)"
 
@@ -37,7 +39,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add sync-data.json
+          git add sync-data.json backup-latest.json
           if ! git diff --staged --quiet; then
             git commit -m "Mirror cloud sync snapshot"
             git push

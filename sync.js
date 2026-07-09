@@ -681,6 +681,7 @@ async function pushPayloadToCloud(payload, { silent = false, allowProxy = true }
   await pushAlbumBlobs(payload.keys, { silent: true, allowProxy: true });
   syncStatus = 'live';
   updateSyncStatusUI();
+  if (typeof scheduleCloudBackup === 'function') scheduleCloudBackup();
 }
 
 async function pushSyncToCloud(allowOverwrite = false) {
@@ -735,6 +736,7 @@ function patchLocalStorageForSync() {
     origSetItem(key, value);
     if (BACKUP_KEYS.includes(key) && !applyingRemote) {
       scheduleSyncPush(SYNC_URGENT_KEYS.has(key));
+      if (typeof scheduleCloudBackup === 'function') scheduleCloudBackup();
     }
   };
 }

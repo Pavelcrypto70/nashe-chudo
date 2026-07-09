@@ -131,6 +131,12 @@ function renderSettingsPanel() {
         <div class="sync-status sync-status--off" id="syncStatus"><i class="fas fa-cloud-slash"></i><span>Проверяем...</span></div>
         <button type="button" class="btn-wish btn-wish-ghost btn-sm" id="resetCacheBtn"><i class="fas fa-broom"></i> Сбросить кэш</button>
       </div>
+      <div class="settings-card settings-card-backup">
+        <h3><i class="fas fa-shield-heart"></i> Облачный бэкап</h3>
+        <p class="settings-sync-hint">После каждого изменения копия уходит в облако и на GitHub. Если что-то слетит — можно восстановить одной кнопкой.</p>
+        <div class="cloud-backup-status cloud-backup-status--unknown" id="cloudBackupStatus"><i class="fas fa-cloud"></i><span>Проверяем...</span></div>
+        <button type="button" class="btn-wish btn-wish-outline btn-sm" id="cloudBackupRestoreBtn"><i class="fas fa-undo"></i> Восстановить из облака</button>
+      </div>
       <div class="settings-card settings-card-pwa">
         <h3><i class="fas fa-mobile-screen"></i> На экран iPhone</h3>
         <p class="settings-pwa-hint">Safari → «Поделиться» → «На экран Домой». Сайт откроется как приложение.</p>
@@ -183,7 +189,9 @@ function renderSettingsPanel() {
 
   bindPwaButton();
   updateSyncStatus?.();
+  updateCloudBackupStatus?.();
   document.getElementById('resetCacheBtn')?.addEventListener('click', () => resetAppCache?.());
+  document.getElementById('cloudBackupRestoreBtn')?.addEventListener('click', () => restoreFromCloudBackup?.());
 }
 
 async function resetAppCache() {

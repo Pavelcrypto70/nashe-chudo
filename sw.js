@@ -1,4 +1,4 @@
-const CACHE_VERSION = '20260709-22';
+const CACHE_VERSION = '20260709-23';
 const CACHE = 'nashe-chudo-' + CACHE_VERSION;
 
 self.addEventListener('install', e => {
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
 
-  const isCode = /\.(js|html)$/.test(url.pathname) || url.pathname.endsWith('version.js') || url.pathname.endsWith('sync-data.json') || url.pathname.endsWith('/');
+  const isCode = /\.(js|html)$/.test(url.pathname) || url.pathname.endsWith('version.js') || url.pathname.endsWith('sync-data.json') || url.pathname.endsWith('backup-latest.json') || url.pathname.endsWith('/');
   if (isCode) {
     e.respondWith(fetch(e.request, { cache: 'no-store' }));
     return;
