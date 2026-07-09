@@ -1,4 +1,4 @@
-const CACHE_VERSION = '20260709-4';
+const CACHE_VERSION = '20260709-5';
 const CACHE = 'nashe-chudo-' + CACHE_VERSION;
 
 self.addEventListener('install', e => {
@@ -21,6 +21,11 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.endsWith('version.js')) {
+    e.respondWith(fetch(e.request, { cache: 'no-store' }));
+    return;
+  }
 
   const isAsset = /\.(js|css|html|json|svg)$/.test(url.pathname) || url.pathname.endsWith('/');
 

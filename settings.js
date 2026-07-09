@@ -234,6 +234,27 @@ function bindPwaButton() {
   });
 }
 
+function parseAppVersion(text) {
+  const m = text.match(/APP_VERSION\s*=\s*['"]([^'"]+)['"]/);
+  return m ? m[1] : null;
+}
+
+async function checkForAppUpdate() {
+  if (typeof APP_VERSION === 'undefined') return;
+  try {
+    const res = await fetch(`version.js?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const remote = parseAppVersion(await res.text());
+    if (!remote || remote === APP_VERSION) return;
+
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    window.location.reload();
+  } catch {}
+}
+
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator) || typeof APP_VERSION === 'undefined') return;
 
@@ -247,7 +268,7 @@ function registerServiceWorker() {
   navigator.serviceWorker.register(`sw.js?v=${APP_VERSION}`)
     .then(reg => {
       reg.update();
-      setInterval(() => reg.update(), 30 * 60 * 1000);
+      setInterval(() => reg.update(), 5 * 60 * 1000);
 
       reg.addEventListener('updatefound', () => {
         const worker = reg.installing;
@@ -265,8 +286,12 @@ function registerServiceWorker() {
     })
     .catch(() => {});
 
+  checkForAppUpdate();
+  setInterval(checkForAppUpdate, 60 * 1000);
+
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
+      checkForAppUpdate();
       navigator.serviceWorker?.ready.then(r => r.update()).catch(() => {});
     }
   });
