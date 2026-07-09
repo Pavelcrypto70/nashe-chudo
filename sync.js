@@ -1,7 +1,8 @@
 /* Облачная синхронизация — общая база для телефона, ПК и всех устройств (MantleDB) */
 
 const SYNC_POLL_MS = 4000;
-const SYNC_DEBOUNCE_MS = 1200;
+const SYNC_DEBOUNCE_MS = 2000;
+const DEVICE_ID_KEY = 'nashe_chudo_device_id';
 
 let lastRemoteAt = 0;
 let lastPushAt = 0;
@@ -34,10 +35,32 @@ function syncHeaders() {
   };
 }
 
-function fetchWithTimeout(url, options = {}, ms = 8000) {
+function fetchWithTimeout(url, options = {}, ms = 12000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem(DEVICE_ID_KEY);
+  if (!id) {
+    id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    localStorage.setItem(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+function getDeviceLabel() {
+  return /iPhone|iPad|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+}
+
+function payloadScore(payload) {
+  if (!payload?.keys) return 0;
+  let score = 0;
+  Object.values(payload.keys).forEach(v => {
+    if (v && typeof v === 'string') score += v.length;
+  });
+  return score;
 }
 
 function collectSyncPayload() {
@@ -49,24 +72,50 @@ function collectSyncPayload() {
   return {
     updatedAt: Date.now(),
     keys,
-    device: /iPhone|iPad|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+    device: getDeviceLabel(),
+    deviceId: getDeviceId()
   };
 }
 
-function applySyncPayload(data) {
+function pickBetterValue(a, b) {
+  if (a == null && b == null) return null;
+  if (a == null) return b;
+  if (b == null) return a;
+  return a.length >= b.length ? a : b;
+}
+
+function mergePayloads(remote, local) {
+  const keys = {};
+  BACKUP_KEYS.forEach(key => {
+    const merged = pickBetterValue(remote?.keys?.[key], local?.keys?.[key]);
+    if (merged != null) keys[key] = merged;
+  });
+  return {
+    keys,
+    updatedAt: Date.now(),
+    device: getDeviceLabel(),
+    deviceId: getDeviceId()
+  };
+}
+
+function applySyncPayload(data, force = false) {
   if (!data?.keys) return false;
-  if (data.updatedAt <= lastRemoteAt) return false;
+  if (!force && data.updatedAt && data.updatedAt <= lastRemoteAt) return false;
 
   applyingRemote = true;
-  lastRemoteAt = data.updatedAt;
+  if (data.updatedAt) lastRemoteAt = data.updatedAt;
+
   BACKUP_KEYS.forEach(key => {
     if (!Object.prototype.hasOwnProperty.call(data.keys, key)) return;
+    const val = data.keys[key];
+    if (val == null) return;
     try {
-      origSetItem(key, data.keys[key]);
+      origSetItem(key, val);
     } catch (err) {
       console.warn('Sync skip key (quota?):', key, err);
     }
   });
+
   applyingRemote = false;
   return true;
 }
@@ -74,22 +123,51 @@ function applySyncPayload(data) {
 function scheduleSyncPush() {
   if (!syncReady || applyingRemote) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(pushSyncToCloud, SYNC_DEBOUNCE_MS);
+  pushTimer = setTimeout(() => pushSyncToCloud(false), SYNC_DEBOUNCE_MS);
 }
 
-async function pushSyncToCloud() {
-  if (!isSyncConfigured()) return;
-  const payload = collectSyncPayload();
+async function pushPayloadToCloud(payload) {
   lastPushAt = payload.updatedAt;
+  const res = await fetchWithTimeout(syncApiUrl(), {
+    method: 'POST',
+    headers: syncHeaders(),
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('push failed');
+  syncStatus = 'live';
+  updateSyncStatusUI();
+}
+
+async function pushSyncToCloud(allowOverwrite = false) {
+  if (!isSyncConfigured() || applyingRemote) return;
+
+  const local = collectSyncPayload();
+  if (payloadScore(local) < 10) return;
+
   try {
-    const res = await fetchWithTimeout(syncApiUrl(), {
-      method: 'POST',
-      headers: syncHeaders(),
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error('push failed');
-    syncStatus = 'live';
-    updateSyncStatusUI();
+    if (!allowOverwrite) {
+      const remote = await pullSyncFromCloud();
+      if (remote?.keys) {
+        const remoteScore = payloadScore(remote);
+        const localScore = payloadScore(local);
+
+        if (remoteScore > localScore) {
+          applySyncPayload(remote, true);
+          refreshAfterSync();
+          return;
+        }
+
+        if (remoteScore === localScore && remote.updatedAt >= local.updatedAt) {
+          return;
+        }
+
+        const merged = mergePayloads(remote, local);
+        await pushPayloadToCloud(merged);
+        return;
+      }
+    }
+
+    await pushPayloadToCloud(local);
   } catch {
     syncStatus = 'error';
     updateSyncStatusUI();
@@ -111,6 +189,7 @@ async function pullSyncFromCloud() {
 }
 
 function patchLocalStorageForSync() {
+  if (origSetItem) return;
   origSetItem = localStorage.setItem.bind(localStorage);
   localStorage.setItem = function (key, value) {
     origSetItem(key, value);
@@ -126,12 +205,24 @@ function refreshAfterSync() {
 function startSyncPolling() {
   clearInterval(pollTimer);
   pollTimer = setInterval(async () => {
-    if (document.hidden || !syncReady) return;
+    if (!syncReady) return;
+
     const remote = await pullSyncFromCloud();
     if (!remote?.keys) return;
-    if (Math.abs(remote.updatedAt - lastPushAt) < 500) return;
-    if (remote.updatedAt <= lastRemoteAt) return;
-    const changed = applySyncPayload(remote);
+
+    const local = collectSyncPayload();
+    const remoteScore = payloadScore(remote);
+    const localScore = payloadScore(local);
+    const isOwnEcho = remote.deviceId === getDeviceId() && Math.abs(remote.updatedAt - lastPushAt) < 3000;
+
+    if (isOwnEcho) return;
+
+    const shouldPull = remote.updatedAt > lastRemoteAt
+      || remoteScore > localScore + 20;
+
+    if (!shouldPull) return;
+
+    const changed = applySyncPayload(remote, true);
     if (changed) {
       refreshAfterSync();
       showToast?.('Обновлено с другого устройства');
@@ -139,12 +230,7 @@ function startSyncPolling() {
   }, SYNC_POLL_MS);
 
   document.addEventListener('visibilitychange', async () => {
-    if (!document.hidden && syncReady) {
-      const remote = await pullSyncFromCloud();
-      if (remote?.keys && remote.updatedAt > lastRemoteAt) {
-        if (applySyncPayload(remote)) refreshAfterSync();
-      }
-    }
+    if (!document.hidden && syncReady) await forceSyncNow();
   });
 }
 
@@ -161,14 +247,22 @@ async function initSync() {
 
   try {
     const remote = await pullSyncFromCloud();
+    const local = collectSyncPayload();
 
-    if (remote?.keys) {
-      applySyncPayload(remote);
-    } else {
-      const payload = collectSyncPayload();
-      lastPushAt = payload.updatedAt;
-      lastRemoteAt = payload.updatedAt;
-      await pushSyncToCloud();
+    if (remote?.keys && payloadScore(remote) > 0) {
+      const remoteScore = payloadScore(remote);
+      const localScore = payloadScore(local);
+
+      if (remoteScore >= localScore) {
+        applySyncPayload(remote, true);
+      } else {
+        const merged = mergePayloads(remote, local);
+        applySyncPayload(merged, true);
+        await pushPayloadToCloud(merged);
+      }
+    } else if (payloadScore(local) > 50) {
+      await pushPayloadToCloud(local);
+      lastRemoteAt = local.updatedAt;
     }
 
     syncReady = true;
@@ -188,9 +282,9 @@ function updateSyncStatusUI() {
 
   const meta = {
     off: { icon: 'fa-cloud-slash', text: 'Синхронизация не настроена' },
-    connecting: { icon: 'fa-spinner fa-spin', text: 'Подключаем общую базу...' },
-    live: { icon: 'fa-cloud', text: 'Общая база работает — телефон и ПК синхронизируются' },
-    error: { icon: 'fa-triangle-exclamation', text: 'Не удалось связаться с облаком — проверьте интернет' }
+    connecting: { icon: 'fa-spinner fa-spin', text: 'Загружаем общие данные...' },
+    live: { icon: 'fa-cloud', text: 'Общая база работает — изменения синхронизируются' },
+    error: { icon: 'fa-triangle-exclamation', text: 'Не удалось связаться с облаком — нажмите «Загрузить из облака»' }
   }[syncStatus] || { icon: 'fa-cloud', text: '' };
 
   el.className = 'sync-status sync-status--' + syncStatus;
@@ -198,16 +292,44 @@ function updateSyncStatusUI() {
 }
 
 async function forceSyncNow() {
-  if (!syncReady) {
-    showToast?.('Синхронизация не подключена');
+  if (!isSyncConfigured()) {
+    showToast?.('Синхронизация не настроена');
     return;
   }
-  await pushSyncToCloud();
-  const remote = await pullSyncFromCloud();
-  if (remote?.keys && remote.updatedAt > lastRemoteAt) {
-    if (applySyncPayload(remote)) refreshAfterSync();
+
+  syncStatus = 'connecting';
+  updateSyncStatusUI();
+
+  try {
+    const remote = await pullSyncFromCloud();
+    if (!remote?.keys || payloadScore(remote) < 1) {
+      showToast?.('В облаке пока нет данных');
+      syncStatus = syncReady ? 'live' : 'error';
+      updateSyncStatusUI();
+      return;
+    }
+
+    const local = collectSyncPayload();
+    const remoteScore = payloadScore(remote);
+    const localScore = payloadScore(local);
+
+    if (remoteScore >= localScore) {
+      applySyncPayload(remote, true);
+    } else {
+      const merged = mergePayloads(remote, local);
+      applySyncPayload(merged, true);
+    }
+
+    syncReady = true;
+    syncStatus = 'live';
+    refreshAfterSync();
+    showToast?.('Данные из облака загружены');
+  } catch {
+    syncStatus = 'error';
+    showToast?.('Не удалось загрузить из облака');
   }
-  showToast?.('Синхронизировано');
+
+  updateSyncStatusUI();
 }
 
 window.updateSyncStatus = updateSyncStatusUI;

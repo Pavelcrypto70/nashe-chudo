@@ -13,13 +13,15 @@ const CONFIG = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  init();
+document.addEventListener('DOMContentLoaded', async () => {
   if (typeof initSync === 'function') {
-    initSync()
-      .then(() => { if (typeof refreshAllData === 'function') refreshAllData(); })
-      .catch(err => console.error('Sync failed:', err));
+    try {
+      await initSync();
+    } catch (err) {
+      console.error('Sync failed:', err);
+    }
   }
+  init();
 });
 
 function init() {
