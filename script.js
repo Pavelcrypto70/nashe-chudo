@@ -108,7 +108,8 @@ function updateCountdown(state) {
   const progress = Math.min(100, Math.round((daysElapsed / totalDays) * 100));
 
   if (weeksEl) weeksEl.textContent = pregnancy.week;
-  if (weekSub) weekSub.textContent = `${pregnancy.month}-й месяц · ${pregnancy.dayInWeek} дн. недели`;
+  const dayPart = pregnancy.dayInWeek > 0 ? ` · ${pregnancy.dayInWeek} ${pregnancy.dayInWeek === 1 ? 'день' : pregnancy.dayInWeek < 5 ? 'дня' : 'дней'}` : '';
+  if (weekSub) weekSub.textContent = `${pregnancy.month}-й месяц${dayPart}`;
   if (daysEl) daysEl.textContent = daysLeft;
   if (daysLabel) daysLabel.textContent = 'дней до встречи';
   if (dueText) {
